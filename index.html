@@ -207,18 +207,24 @@
             <div class="online-box">
               <span class="online-label">Tu código de sala:</span>
               <div class="online-row">
-                <span id="my-peer-id" class="peer-id-display">Cargando...</span>
+                <span id="my-peer-id" class="peer-id-display">······</span>
                 <button type="button" id="btn-copy-id" class="copy-btn">Copiar</button>
               </div>
             </div>
             <div class="online-box">
               <span class="online-label">Código del amigo:</span>
               <div class="online-row">
-                <input id="friend-peer-id" type="text" maxlength="6" placeholder="CÓDIGO" autocomplete="off" spellcheck="false" />
+                <input id="friend-peer-id" type="text" maxlength="6" placeholder="CÓDIGO" autocomplete="off" spellcheck="false" inputmode="numeric" />
                 <button type="button" id="btn-connect-online">Conectar</button>
               </div>
             </div>
-            <div id="online-status" class="online-status">Desconectado</div>
+            <div class="online-meta">
+              <div id="online-status" class="online-status">Desconectado</div>
+              <div id="online-lag" class="online-lag">Ping: —</div>
+            </div>
+            <button type="button" id="btn-reconnect-online" class="btn-secondary online-reconnect hidden">Reconectar</button>
+            <button type="button" id="btn-online-rematch" class="online-rematch hidden">Revancha</button>
+            <p class="online-hint">Mismo modo en ambos (Online o Coop). Host comparte código; invitado pega y Conectar.</p>
           </div>
           <div id="vs-overlay-diff" class="vs-diff-picker">
             <span class="diff-label">Dificultad del bot</span>
@@ -329,7 +335,7 @@
     </main>
 
     <footer class="footer">
-      <p>← → mover · ↑ girar · Espacio hard drop · V versus · M sonido</p>
+      <p>← → mover · ↑ girar · Espacio hard drop · V modo · M sonido · Online P2P</p>
     </footer>
   </div>
 

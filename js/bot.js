@@ -1,5 +1,5 @@
 /**
- * IA del bot: evaluación de tablero y mejor colocación.
+ * IA del bot: evaluación, mejor jugada y driver de ejecución (versus / auto / boss).
  */
 window.Tetris = window.Tetris || {};
 
@@ -69,6 +69,105 @@ window.Tetris = window.Tetris || {};
 
   Bot.randRange = function randRange(a, b) {
     return a + Math.random() * (b - a);
+  };
+
+  /**
+   * Driver reutilizable: piensa → rota/mueve → hard drop → lock.
+   * api: {
+   *   getPiece(), getGrid(),
+   *   tryMove(dx,dy) -> bool,
+   *   tryRotateCW() -> kickIndex >=0 or -1,
+   *   hardDropAndLock(),
+   *   gravityDrop() optional single step down,
+   *   onAfterLock() optional,
+   *   isAlive() -> bool
+   * }
+   */
+  Bot.createDriver = function createDriver() {
+    return {
+      plan: null,
+      phase: "think",
+      thinkTimer: 0,
+      moveTimer: 0,
+      steps: 0,
+      dropAcc: 0,
+
+      reset: function (cfg) {
+        this.plan = null;
+        this.phase = "think";
+        this.thinkTimer = cfg ? Bot.randRange(cfg.thinkMs[0], cfg.thinkMs[1]) : 0;
+        this.moveTimer = 0;
+        this.steps = 0;
+        this.dropAcc = 0;
+      },
+
+      /**
+       * @returns {"locked"|"thinking"|"moving"|null}
+       */
+      tick: function (dt, cfg, api) {
+        if (!api || !api.isAlive()) return null;
+        const piece = api.getPiece();
+        if (!piece) return null;
+
+        // Gravedad suave del bot
+        if (api.gravityStep) {
+          this.dropAcc += dt;
+          const grounded = api.isGrounded && api.isGrounded();
+          if (grounded) {
+            // lock delay lo maneja el caller si quiere; aquí solo ejecuta plan
+          } else {
+            while (this.dropAcc >= cfg.dropInterval) {
+              this.dropAcc -= cfg.dropInterval;
+              api.gravityStep();
+            }
+          }
+        }
+
+        if (this.phase === "think") {
+          this.thinkTimer -= dt;
+          if (this.thinkTimer <= 0) {
+            this.plan = Bot.findBestMove(api.getGrid(), piece.type, cfg);
+            this.phase = "execute";
+            this.moveTimer = 0;
+            this.steps = 0;
+          }
+          return "thinking";
+        }
+
+        if (this.phase === "execute") {
+          this.moveTimer -= dt;
+          if (this.moveTimer > 0) return "moving";
+          this.moveTimer = cfg.moveMs;
+          this.steps++;
+
+          const forceDrop = () => {
+            api.hardDropAndLock();
+            this.reset(cfg);
+            if (api.onAfterLock) api.onAfterLock();
+            return "locked";
+          };
+
+          if (!this.plan || this.steps > 40) return forceDrop();
+
+          if (piece.rotation !== this.plan.rot) {
+            const kick = api.tryRotateCW();
+            if (kick < 0) this.steps = 40;
+            return "moving";
+          }
+          if (piece.x < this.plan.x) {
+            if (!api.tryMove(1, 0)) this.plan.x = piece.x;
+            return "moving";
+          }
+          if (piece.x > this.plan.x) {
+            if (!api.tryMove(-1, 0)) this.plan.x = piece.x;
+            return "moving";
+          }
+          return forceDrop();
+        }
+
+        return null;
+      },
+    };
   };
 
   T.Bot = Bot;
