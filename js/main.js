@@ -149,6 +149,8 @@ window.Tetris = window.Tetris || {};
   let p = null;
   let b = null;
   let boss = null;
+  /** Progreso para revivir al compañero KO (líneas limpiadas) */
+  let reviveCharge = 0;
 
   function usesSoloLayout() {
     return gameMode === "solo" || gameMode === "auto";
@@ -200,7 +202,7 @@ window.Tetris = window.Tetris || {};
     if (gameMode === "versus") return "Versus BOT · Chiptune · T-Spins";
     if (gameMode === "auto") return `Auto · BOT ${T.BOT_DIFF[botDiff].label} · Mira y disfruta`;
     if (gameMode === "online") return "Online P2P · vs Amigo · Sin Delay";
-    if (gameMode === "coop") return "Coop 2v1 P2P · Derrota al Boss Boss Boss";
+    if (gameMode === "coop") return "Coop 2v1 · Revivir aliado · vs Boss";
     return "Chiptune · T-Spins · Ranking";
   }
 
@@ -267,16 +269,20 @@ window.Tetris = window.Tetris || {};
     if (attack > 0) {
       if (gameMode === "coop") {
         if (from === boss) {
-          // El Boss ataca alternadamente a los jugadores
-          const target = boss.sent % 2 === 0 ? p : b;
-          if (target === p) {
+          // Boss ataca al jugador vivo (si uno está KO, todo el daño va al otro)
+          let target = boss.sent % 2 === 0 ? p : b;
+          if (target && target.dead) target = target === p ? b : p;
+          if (!target || target.dead) {
+            boss.sent += attack;
+          } else if (target === p) {
             p.pendingGarbage += attack;
             flashKoCoop(`¡BOSS ATACA A TI +${attack}!`);
+            boss.sent += attack;
           } else {
             T.Online.sendGarbage(attack, "player");
             flashKoCoop(`¡BOSS ATACA A AMIGO +${attack}!`);
+            boss.sent += attack;
           }
-          boss.sent += attack;
         } else {
           // Ataque de jugador contra Boss
           if (!T.Online.isHost) {
@@ -306,7 +312,7 @@ window.Tetris = window.Tetris || {};
     const tspin = E.detectTSpin(seat.grid, piece, seat.lastRotated, seat.lastKickIndex);
     const block = (gameMode === "versus" || gameMode === "online") ? 24 : (gameMode === "coop" ? 20 : 30);
     if (E.lockOntoGrid(seat.grid, piece)) {
-      seat.dead = true;
+      markSeatDead(seat);
       return;
     }
     if (playSfx && !seat.isBot && !seat.hardDropping) SFX.lock();
@@ -355,9 +361,16 @@ window.Tetris = window.Tetris || {};
       if (opponent || gameMode === "coop" || gameMode === "online") {
         sendGarbage(seat, opponent, attack, tspin ? `T-Spin → ${attack}` : `¡${attack} basura!`);
       }
+
+      // Coop: líneas del jugador vivo cargan el revivir del compañero KO
+      if (gameMode === "coop" && seat === p && !seat.isBot && cleared > 0) {
+        tryCoopReviveCharge(cleared);
+      }
     } else if (tspin && !seat.isBot) {
       FX.showBanner(tspin === "mini" ? "T-SPIN MINI" : "T-SPIN", tspin === "mini" ? "mini" : "tspin");
     }
+
+    if (seat.dead) return;
 
     seat.lastRotated = false;
     seat.lastKickIndex = 0;
@@ -365,10 +378,66 @@ window.Tetris = window.Tetris || {};
     seat.nextType = E.nextFromBag(seat.bag);
     seat.canHold = true;
     seat.lockDelay = 0;
-    if (applyGarbageOnSpawn(seat) || E.collides(seat.grid, seat.current)) seat.dead = true;
+    if (applyGarbageOnSpawn(seat) || E.collides(seat.grid, seat.current)) {
+      markSeatDead(seat);
+    }
+  }
+
+  function markSeatDead(seat) {
+    if (!seat || seat.dead) return;
+    seat.dead = true;
+    seat.current = null;
+    if (seat === p && gameMode === "coop") {
+      reviveCharge = 0;
+      flashKoCoop("¡KO! Espera a que tu amigo te reviva");
+      FX.showBanner("KO", "tspin");
+      if (b && b.dead) endCoopGame(false);
+    } else if (seat === p && gameMode !== "coop") {
+      // versus/online se resuelve en tick/input
+    }
+  }
+
+  /** El jugador vivo acumula líneas para revivir al amigo. */
+  function tryCoopReviveCharge(cleared) {
+    if (!b || !b.dead || !p || p.dead) return;
+    const need = T.REVIVE_LINES_NEED || 3;
+    reviveCharge += cleared;
+    const shown = Math.min(reviveCharge, need);
+    flashKoCoop(`Revivir amigo ${shown}/${need}`);
+    if (reviveCharge >= need) {
+      reviveCharge = 0;
+      // Revivir al compañero remoto
+      T.Online.sendRevive(T.REVIVE_CLEAR_TOP);
+      // Vista local del amigo
+      E.reviveSeat(b, T.REVIVE_CLEAR_TOP);
+      flashKoCoop("¡AMIGO REVIVIDO!");
+      FX.showBanner("REVIVE!", "perfect");
+      if (SFX.levelUp) SFX.levelUp();
+      updateCoopHUD();
+    }
+  }
+
+  /** Te revivieron a ti (mensaje de red). */
+  function applyCoopReviveLocal(clearTop) {
+    if (!p || gameMode !== "coop" || state !== "playing") return;
+    if (!p.dead) return;
+    E.reviveSeat(p, clearTop);
+    reviveCharge = 0;
+    flashKoCoop("¡TE REVIVIERON!");
+    FX.showBanner("REVIVE!", "perfect");
+    if (SFX.levelUp) SFX.levelUp();
+    // Confirmar estado al compañero para su tablero “AMIGO”
+    if (T.Online) T.Online.sendReviveAck(p);
+    updateCoopHUD();
+  }
+
+  function onCoopPartnerRevived() {
+    flashKoCoop("Compañero de vuelta");
+    updateCoopHUD();
   }
 
   function seatTryMove(seat, dx, dy) {
+    if (!seat || seat.dead || !seat.current) return false;
     if (!E.collides(seat.grid, seat.current, dx, dy)) {
       seat.current.x += dx;
       seat.current.y += dy;
@@ -383,7 +452,7 @@ window.Tetris = window.Tetris || {};
   }
 
   function seatHold(seat) {
-    if (!seat.canHold) return;
+    if (!seat || seat.dead || !seat.current || !seat.canHold) return;
     seat.canHold = false;
     seat.lastRotated = false;
     seat.lastKickIndex = 0;
@@ -400,7 +469,7 @@ window.Tetris = window.Tetris || {};
     seat.lockDelay = 0;
     if (E.collides(seat.grid, seat.current)) {
       if (!E.collides(seat.grid, seat.current, 0, -1)) seat.current.y -= 1;
-      else seat.dead = true;
+      else markSeatDead(seat);
     }
   }
 
@@ -749,6 +818,7 @@ window.Tetris = window.Tetris || {};
     T.p = p;
     T.b = b;
     T.boss = boss;
+    reviveCharge = 0;
     bossDriver.reset(T.BOT_DIFF.hard);
     coopKoFeed.textContent = "";
     updateCoopHUD();
@@ -773,8 +843,10 @@ window.Tetris = window.Tetris || {};
     if (state === "over") return;
     opts = opts || {};
     setState("over");
+    reviveCharge = 0;
     MUSIC.stop();
     if (T.Online) T.Online.stopSync();
+    // En coop el resultado es compartido (ambos ganan o ambos pierden)
     if (!opts.fromNet && !opts.disconnect && T.Online && T.Online.isConnected) {
       T.Online.sendGameOver(!!playerWon);
     }
@@ -1088,6 +1160,7 @@ window.Tetris = window.Tetris || {};
         p.lockDelay = 0;
         if (p.dead) {
           if (gameMode === "coop") {
+            // Un solo KO no termina: el compañero puede revivir. Derrota solo si ambos KO.
             if (b && b.dead) endCoopGame(false);
           } else if (gameMode === "online") {
             endOnlineGame(false);
@@ -1200,30 +1273,34 @@ window.Tetris = window.Tetris || {};
       R.drawMini(nextCtx, nextCanvas, nextType);
     } else if (gameMode === "coop") {
       const showPieces = state === "playing" || state === "paused" || state === "over";
+      const pDead = !!(p && p.dead);
+      const bDead = !!(b && b.dead);
       R.drawField(
         coopP1BoardCtx,
         coopP1BoardCanvas,
         p ? p.grid : E.createGrid(),
-        showPieces && p ? p.current : null,
+        showPieces && p && !pDead ? p.current : null,
         20,
         state === "playing" || state === "paused",
-        { withFx: true }
+        { withFx: true, dead: pDead && state === "playing", koLabel: "KO" }
       );
       R.drawField(
         coopP2BoardCtx,
         coopP2BoardCanvas,
         b ? b.grid : E.createGrid(),
-        showPieces && b ? b.current : null,
+        showPieces && b && !bDead ? b.current : null,
         20,
-        false
+        false,
+        { dead: bDead && state === "playing", koLabel: "KO" }
       );
       R.drawField(
         coopBossBoardCtx,
         coopBossBoardCanvas,
         boss ? boss.grid : E.createGrid(),
-        showPieces && boss ? boss.current : null,
+        showPieces && boss && !boss.dead ? boss.current : null,
         20,
-        false
+        false,
+        { dead: !!(boss && boss.dead && state === "playing"), koLabel: "BOSS" }
       );
       R.drawMini(coopP1HoldCtx, coopP1HoldCanvas, p ? p.holdType : null, p && !p.canHold && state === "playing");
       R.drawMini(coopP1NextCtx, coopP1NextCanvas, p ? p.nextType : null);
@@ -1583,6 +1660,8 @@ window.Tetris = window.Tetris || {};
   T.endOnlineGame = endOnlineGame;
   T.startCoopGame = startCoopGame;
   T.endCoopGame = endCoopGame;
+  T.applyCoopReviveLocal = applyCoopReviveLocal;
+  T.onCoopPartnerRevived = onCoopPartnerRevived;
 
   T.onOnlineDisconnect = function onOnlineDisconnect(info) {
     info = info || {};

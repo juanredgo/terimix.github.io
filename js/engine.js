@@ -169,6 +169,45 @@ window.Tetris = window.Tetris || {};
     return topOut;
   };
 
+  /**
+   * Prepara un asiento KO para revivir: limpia filas superiores y reaparece pieza.
+   */
+  Engine.reviveSeat = function reviveSeat(seat, clearTop) {
+    if (!seat) return;
+    const n = Math.max(0, Math.min(T.ROWS - 2, clearTop == null ? T.REVIVE_CLEAR_TOP : clearTop));
+    for (let r = 0; r < n; r++) {
+      seat.grid[r] = Array(T.COLS).fill(null);
+    }
+    // Baja el stack un poco si sigue muy alto
+    let topRow = T.ROWS;
+    for (let r = 0; r < T.ROWS; r++) {
+      if (seat.grid[r].some((c) => c !== null)) {
+        topRow = r;
+        break;
+      }
+    }
+    if (topRow < 4) {
+      for (let k = 0; k < 4 - topRow; k++) {
+        seat.grid.shift();
+        seat.grid.push(Array(T.COLS).fill(null));
+      }
+    }
+    seat.dead = false;
+    seat.pendingGarbage = 0;
+    seat.lockDelay = 0;
+    seat.dropAccumulator = 0;
+    seat.hardDropping = false;
+    seat.lastRotated = false;
+    seat.lastKickIndex = 0;
+    seat.canHold = true;
+    if (!seat.nextType) seat.nextType = Engine.nextFromBag(seat.bag);
+    seat.current = Engine.spawnPiece(seat.nextType);
+    seat.nextType = Engine.nextFromBag(seat.bag);
+    if (Engine.collides(seat.grid, seat.current)) {
+      if (!Engine.collides(seat.grid, seat.current, 0, -1)) seat.current.y -= 1;
+    }
+  };
+
   /** @returns {number} kick index, or -1 if failed */
   Engine.tryRotateOn = function tryRotateOn(grid, piece, dir) {
     if (piece.type === "O") return 0;

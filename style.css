@@ -291,13 +291,12 @@ body::after {
 #coop-p2-board,
 #coop-boss-board {
   display: block;
-  background: #0e0e06;
+  background: #0c0c08;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  /* Tamaño CSS = resolución interna → 1 celda = 1 bloque exacto */
-  width: auto;
-  height: auto;
-  max-width: 100%;
+  /* JS fija width/height en px = resolución interna (1 celda = 1 bloque) */
+  max-width: none;
+  flex-shrink: 0;
 }
 
 /* ——— FX Banner ——— */

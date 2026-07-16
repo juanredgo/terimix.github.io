@@ -506,11 +506,32 @@ window.Tetris = window.Tetris || {};
 
       case "game_over": {
         Online.stopSync();
+        // coop: win es el mismo para ambos. 1v1: win ya viene como resultado del receptor.
         if (T.gameMode === "coop" && typeof T.endCoopGame === "function") {
           T.endCoopGame(!!msg.win, { fromNet: true });
         } else if (typeof T.endOnlineGame === "function") {
           T.endOnlineGame(!!msg.win, { fromNet: true });
         }
+        break;
+      }
+
+      case "revive": {
+        // El compañero te revivió (tú estabas KO)
+        if (T.gameMode === "coop" && typeof T.applyCoopReviveLocal === "function") {
+          T.applyCoopReviveLocal(msg.clearTop);
+        }
+        break;
+      }
+
+      case "revive_ack": {
+        // Confirmación visual: el amigo ya no está KO en tu vista
+        if (T.b) {
+          T.b.dead = false;
+          if (msg.grid) T.b.grid = msg.grid;
+          if (msg.current) T.b.current = msg.current;
+          if (msg.nextType) T.b.nextType = msg.nextType;
+        }
+        if (typeof T.onCoopPartnerRevived === "function") T.onCoopPartnerRevived();
         break;
       }
 
@@ -530,10 +551,12 @@ window.Tetris = window.Tetris || {};
 
   function checkCoopEnd() {
     if (T.gameMode !== "coop") return;
+    if (T.state === "over" || T.state === "menu") return;
     if (T.boss && T.boss.dead && typeof T.endCoopGame === "function") {
       T.endCoopGame(true, { fromNet: true });
       return;
     }
+    // Solo derrota total si AMBOS jugadores están KO
     if (T.p && T.p.dead && T.b && T.b.dead && typeof T.endCoopGame === "function") {
       T.endCoopGame(false, { fromNet: true });
     }
@@ -560,8 +583,35 @@ window.Tetris = window.Tetris || {};
     });
   };
 
+  /**
+   * Fin de partida.
+   * - Coop: ambos reciben el MISMO resultado (win compartido).
+   * - Online 1v1: el rival recibe el resultado invertido.
+   */
   Online.sendGameOver = function sendGameOver(iWon) {
-    Online.send({ type: "game_over", win: !iWon });
+    if (T.gameMode === "coop") {
+      Online.send({ type: "game_over", win: !!iWon, coop: true });
+    } else {
+      Online.send({ type: "game_over", win: !iWon, coop: false });
+    }
+  };
+
+  Online.sendRevive = function sendRevive(clearTop) {
+    Online.send({
+      type: "revive",
+      clearTop: clearTop == null ? T.REVIVE_CLEAR_TOP : clearTop,
+    });
+  };
+
+  Online.sendReviveAck = function sendReviveAck(seat) {
+    if (!seat) return;
+    Online.send({
+      type: "revive_ack",
+      grid: seat.grid,
+      current: seat.current,
+      nextType: seat.nextType,
+      holdType: seat.holdType,
+    });
   };
 
   Online.requestRematch = function requestRematch() {

@@ -17,17 +17,21 @@ window.Tetris = window.Tetris || {};
   T.DAS = 170;
   T.ARR = 40;
   T.SOFT_DROP_INTERVAL = 100;
+  /** Líneas que debe limpiar el compañero vivo para revivir al KO en coop */
+  T.REVIVE_LINES_NEED = 5;
+  /** Filas superiores que se limpian al revivir (aire fresco) */
+  T.REVIVE_CLEAR_TOP = 8;
 
   T.COLORS = {
-    I: "#58a8b8",
-    O: "#c8b040",
-    T: "#9868a8",
-    S: "#58a858",
-    Z: "#b85048",
-    J: "#5878b8",
-    L: "#c88838",
-    G: "#585840",
-    GRID: "rgba(74, 74, 46, 0.18)",
+    I: "#5cc8d8",
+    O: "#e0c848",
+    T: "#b078c8",
+    S: "#60c868",
+    Z: "#d06058",
+    J: "#6890d0",
+    L: "#e09848",
+    G: "#3a3a32",
+    GRID: "rgba(90, 90, 55, 0.22)",
   };
 
   T.SHAPES = {
