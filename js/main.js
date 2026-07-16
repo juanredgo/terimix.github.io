@@ -588,6 +588,8 @@ window.Tetris = window.Tetris || {};
     botExecSteps = 0;
     vsKoFeed.textContent = "";
     vsBotLabel.textContent = `BOT · ${T.BOT_DIFF[botDiff].label}`;
+    const vsLabelBot = document.querySelector(".vs-label.bot");
+    if (vsLabelBot) vsLabelBot.textContent = "BOT";
     updateVsHUD();
   }
 
@@ -627,6 +629,8 @@ window.Tetris = window.Tetris || {};
     T.b = b;
     vsKoFeed.textContent = "";
     vsBotLabel.textContent = "ONLINE vs AMIGO";
+    const vsLabelBot = document.querySelector(".vs-label.bot");
+    if (vsLabelBot) vsLabelBot.textContent = "AMIGO";
     updateVsHUD();
   }
 
@@ -722,6 +726,7 @@ window.Tetris = window.Tetris || {};
     
     // Ocultar botón start en menú online (se inicia por sincronización P2P)
     btnStart.classList.toggle("hidden", gameMode === "online");
+    btnVsStart.classList.toggle("hidden", gameMode === "online");
 
     // En overlay solo: mostrar diff si auto y hay mode picker o menú
     if (gameMode === "auto" && state !== "playing" && usesSoloLayout()) {
@@ -771,10 +776,7 @@ window.Tetris = window.Tetris || {};
     if (mode === "online") {
       resetOnline();
       if (T.Online) T.Online.init();
-      showSoloOverlay("Modo Online", "Ingresa el código de tu amigo para conectar o copia el tuyo para enviárselo.", "Volver", {
-        showModes: true,
-        showMiniRank: false,
-      });
+      showVsOverlay("Modo Online", "Copia tu código para tu amigo o ingresa el suyo.", "Jugar", false);
     } else if (isVs) {
       resetVersus();
       showVsOverlay("Versus BOT", "Limpia líneas para enviar basura. El primero en top-out pierde.", "Desafiar BOT", true);

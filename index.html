@@ -79,24 +79,6 @@
               </button>
             </div>
 
-            <!-- Formulario de Conexión Online -->
-            <div id="online-conn-panel" class="online-conn-panel hidden">
-              <div class="online-box">
-                <span class="online-label">Tu código de sala:</span>
-                <div class="online-row">
-                  <span id="my-peer-id" class="peer-id-display">Cargando...</span>
-                  <button type="button" id="btn-copy-id" class="copy-btn">Copiar</button>
-                </div>
-              </div>
-              <div class="online-box">
-                <span class="online-label">Código del amigo:</span>
-                <div class="online-row">
-                  <input id="friend-peer-id" type="text" maxlength="6" placeholder="CÓDIGO" autocomplete="off" spellcheck="false" />
-                  <button type="button" id="btn-connect-online">Conectar</button>
-                </div>
-              </div>
-              <div id="online-status" class="online-status">Desconectado</div>
-            </div>
 
             <div id="vs-diff-picker" class="vs-diff-picker hidden">
               <span class="diff-label" id="diff-label">Dificultad del bot</span>
@@ -215,6 +197,25 @@
         <div class="overlay-card">
           <h2 id="vs-overlay-title">Versus</h2>
           <p id="vs-overlay-msg">Elige dificultad y juega</p>
+
+          <!-- Formulario de Conexión Online -->
+          <div id="online-conn-panel" class="online-conn-panel hidden">
+            <div class="online-box">
+              <span class="online-label">Tu código de sala:</span>
+              <div class="online-row">
+                <span id="my-peer-id" class="peer-id-display">Cargando...</span>
+                <button type="button" id="btn-copy-id" class="copy-btn">Copiar</button>
+              </div>
+            </div>
+            <div class="online-box">
+              <span class="online-label">Código del amigo:</span>
+              <div class="online-row">
+                <input id="friend-peer-id" type="text" maxlength="6" placeholder="CÓDIGO" autocomplete="off" spellcheck="false" />
+                <button type="button" id="btn-connect-online">Conectar</button>
+              </div>
+            </div>
+            <div id="online-status" class="online-status">Desconectado</div>
+          </div>
           <div id="vs-overlay-diff" class="vs-diff-picker">
             <span class="diff-label">Dificultad del bot</span>
             <div class="diff-row">
