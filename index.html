@@ -77,6 +77,10 @@
                 <span class="mode-option-title">Online</span>
                 <span class="mode-option-desc">vs Amigo</span>
               </button>
+              <button type="button" class="mode-option" data-mode="coop">
+                <span class="mode-option-title">Coop 2v1</span>
+                <span class="mode-option-desc">vs Boss</span>
+              </button>
             </div>
 
 
@@ -226,6 +230,92 @@
           </div>
           <button id="btn-vs-start" type="button">Desafiar BOT</button>
           <button id="btn-back-solo" type="button" class="btn-link">← Modo solo</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- ========== COOP ========== -->
+    <main id="layout-coop" class="coop-layout hidden">
+      <!-- Player 1 (Local) -->
+      <div class="coop-side coop-player1">
+        <div class="coop-label you">TÚ</div>
+        <div class="coop-side-panels">
+          <div class="panel-block mini">
+            <h2>HOLD</h2>
+            <canvas id="coop-p1-hold" width="80" height="80"></canvas>
+          </div>
+          <div class="panel-block mini stats-compact">
+            <div class="stat">
+              <span class="stat-label">Enviado</span>
+              <span class="stat-value" id="coop-p1-sent">0</span>
+            </div>
+          </div>
+          <div class="panel-block mini">
+            <h2>NEXT</h2>
+            <canvas id="coop-p1-next" width="80" height="80"></canvas>
+          </div>
+        </div>
+        <div class="board-wrap vs-board-wrap" id="coop-p1-wrap">
+          <div class="garbage-meter" id="coop-p1-garbage" title="Basura entrante"></div>
+          <canvas id="coop-p1-board" width="200" height="400"></canvas>
+          <div id="coop-p1-fx" class="fx-banner" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <!-- Center Divider / VS -->
+      <div class="coop-center">
+        <div class="vs-badge boss">COOP</div>
+        <div class="vs-bot-name">VS BOSS</div>
+        <div class="vs-ko" id="coop-ko-feed"></div>
+      </div>
+
+      <!-- Player 2 (Friend Remote) -->
+      <div class="coop-side coop-player2">
+        <div class="coop-label friend">AMIGO</div>
+        <div class="board-wrap vs-board-wrap" id="coop-p2-wrap">
+          <div class="garbage-meter" id="coop-p2-garbage" title="Basura entrante"></div>
+          <canvas id="coop-p2-board" width="200" height="400"></canvas>
+        </div>
+        <div class="coop-side-panels">
+          <div class="panel-block mini">
+            <h2>HOLD</h2>
+            <canvas id="coop-p2-hold" width="80" height="80"></canvas>
+          </div>
+          <div class="panel-block mini stats-compact">
+            <div class="stat">
+              <span class="stat-label">Enviado</span>
+              <span class="stat-value" id="coop-p2-sent">0</span>
+            </div>
+          </div>
+          <div class="panel-block mini">
+            <h2>NEXT</h2>
+            <canvas id="coop-p2-next" width="80" height="80"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Enemy (Bot Boss) -->
+      <div class="coop-side coop-boss">
+        <div class="coop-label boss">BOSS BOT</div>
+        <div class="board-wrap vs-board-wrap" id="coop-boss-wrap">
+          <div class="garbage-meter" id="coop-boss-garbage" title="Basura entrante"></div>
+          <canvas id="coop-boss-board" width="200" height="400"></canvas>
+        </div>
+        <div class="coop-side-panels">
+          <div class="panel-block mini stats-compact">
+            <div class="stat">
+              <span class="stat-label">Daño Recibido</span>
+              <span class="stat-value" id="coop-boss-damage">0</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Nivel</span>
+              <span class="stat-value" style="color:var(--danger)">DIABOLICO</span>
+            </div>
+          </div>
+          <div class="panel-block mini">
+            <h2>NEXT</h2>
+            <canvas id="coop-boss-next" width="80" height="80"></canvas>
+          </div>
         </div>
       </div>
     </main>

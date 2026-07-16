@@ -74,6 +74,36 @@ window.Tetris = window.Tetris || {};
   const soloBoardWrap = $("solo-board-wrap");
   const vsPlayerWrap = $("vs-player-wrap");
 
+  const layoutCoop = $("layout-coop");
+  const coopP1Wrap = $("coop-p1-wrap");
+  const coopP2Wrap = $("coop-p2-wrap");
+  const coopBossWrap = $("coop-boss-wrap");
+  const coopP1BoardCanvas = $("coop-p1-board");
+  const coopP2BoardCanvas = $("coop-p2-board");
+  const coopBossBoardCanvas = $("coop-boss-board");
+  const coopP1HoldCanvas = $("coop-p1-hold");
+  const coopP2HoldCanvas = $("coop-p2-hold");
+  const coopP1NextCanvas = $("coop-p1-next");
+  const coopP2NextCanvas = $("coop-p2-next");
+  const coopBossNextCanvas = $("coop-boss-next");
+
+  const coopP1BoardCtx = coopP1BoardCanvas.getContext("2d");
+  const coopP2BoardCtx = coopP2BoardCanvas.getContext("2d");
+  const coopBossBoardCtx = coopBossBoardCanvas.getContext("2d");
+  const coopP1HoldCtx = coopP1HoldCanvas.getContext("2d");
+  const coopP2HoldCtx = coopP2HoldCanvas.getContext("2d");
+  const coopP1NextCtx = coopP1NextCanvas.getContext("2d");
+  const coopP2NextCtx = coopP2NextCanvas.getContext("2d");
+  const coopBossNextCtx = coopBossNextCanvas.getContext("2d");
+
+  const coopP1Garbage = $("coop-p1-garbage");
+  const coopP2Garbage = $("coop-p2-garbage");
+  const coopBossGarbage = $("coop-boss-garbage");
+  const coopP1Sent = $("coop-p1-sent");
+  const coopP2Sent = $("coop-p2-sent");
+  const coopBossDamage = $("coop-boss-damage");
+  const coopKoFeed = $("coop-ko-feed");
+
   // ——— Estado global (también en T para audio/fx) ———
   T.gameMode = "solo";
   T.state = "menu";
@@ -106,6 +136,14 @@ window.Tetris = window.Tetris || {};
   let backToBack = false;
   let tspinCount = 0;
 
+  // Coop 2v1
+  let boss = null;
+  let bossPlan = null;
+  let bossThinkTimer = 0;
+  let bossMoveTimer = 0;
+  let bossPhase = "think";
+  let bossExecSteps = 0;
+
   // Auto (bot en tablero solo)
   let autoPlan = null;
   let autoThinkTimer = 0;
@@ -130,6 +168,7 @@ window.Tetris = window.Tetris || {};
     if (gameMode === "versus") return "VS";
     if (gameMode === "auto") return "AUTO";
     if (gameMode === "online") return "ONL";
+    if (gameMode === "coop") return "COOP";
     return "1P";
   }
 
@@ -137,6 +176,7 @@ window.Tetris = window.Tetris || {};
     if (current === "solo") return "auto";
     if (current === "auto") return "versus";
     if (current === "versus") return "online";
+    if (current === "online") return "coop";
     return "solo";
   }
 
@@ -159,6 +199,7 @@ window.Tetris = window.Tetris || {};
   }
 
   function activeBoardWrap() {
+    if (gameMode === "coop") return coopP1Wrap;
     return (gameMode === "versus" || gameMode === "online") ? vsPlayerWrap : soloBoardWrap;
   }
 
@@ -166,6 +207,7 @@ window.Tetris = window.Tetris || {};
     if (gameMode === "versus") return "Versus BOT · Chiptune · T-Spins";
     if (gameMode === "auto") return `Auto · BOT ${T.BOT_DIFF[botDiff].label} · Mira y disfruta`;
     if (gameMode === "online") return "Online P2P · vs Amigo · Sin Delay";
+    if (gameMode === "coop") return "Coop 2v1 P2P · Derrota al Boss Boss Boss";
     return "Chiptune · T-Spins · Ranking";
   }
 
@@ -186,6 +228,10 @@ window.Tetris = window.Tetris || {};
   }
 
   function updateGarbageMeters() {
+    if (gameMode === "coop") {
+      updateCoopHUD();
+      return;
+    }
     if (!p || !b) return;
     vsPGarbage.style.setProperty("--g", String(Math.min(100, p.pendingGarbage * 5)));
     vsBGarbage.style.setProperty("--g", String(Math.min(100, b.pendingGarbage * 5)));
@@ -226,7 +272,29 @@ window.Tetris = window.Tetris || {};
       attack -= cancel;
     }
     if (attack > 0) {
-      if (gameMode === "online") {
+      if (gameMode === "coop") {
+        if (from === boss) {
+          // El Boss ataca alternadamente a los jugadores
+          const target = (boss.sent % 2 === 0) ? p : b;
+          if (target === p) {
+            p.pendingGarbage += attack;
+            flashKoCoop(`¡BOSS ATACA A TI +${attack}!`);
+          } else {
+            T.Online.send({ type: "garbage", lines: attack });
+            flashKoCoop(`¡BOSS ATACA A AMIGO +${attack}!`);
+          }
+          boss.sent += attack;
+        } else {
+          // Ataque de jugador contra Boss
+          if (!T.Online.isHost) {
+            T.Online.send({ type: "garbage_to_boss", lines: attack });
+          } else {
+            boss.pendingGarbage += attack;
+          }
+          from.sent += attack;
+          flashKoCoop(`¡DAÑO AL BOSS +${attack}!`);
+        }
+      } else if (gameMode === "online") {
         T.Online.send({ type: "garbage", lines: attack });
         from.sent += attack;
         flashKo(`ENVIADO +${attack}`);
@@ -243,7 +311,7 @@ window.Tetris = window.Tetris || {};
   function seatLock(seat, opponent, { playSfx = true } = {}) {
     const piece = seat.current;
     const tspin = E.detectTSpin(seat.grid, piece, seat.lastRotated, seat.lastKickIndex);
-    const block = (gameMode === "versus" || gameMode === "online") ? 24 : 30;
+    const block = (gameMode === "versus" || gameMode === "online") ? 24 : (gameMode === "coop" ? 20 : 30);
     if (E.lockOntoGrid(seat.grid, piece)) {
       seat.dead = true;
       return;
@@ -665,6 +733,71 @@ window.Tetris = window.Tetris || {};
     }
   }
 
+  function resetCoop() {
+    p = E.createSeat(false);
+    b = E.createSeat(false);
+    boss = E.createSeat(true);
+    T.p = p;
+    T.b = b;
+    T.boss = boss;
+    bossPlan = null;
+    bossThinkTimer = 0;
+    bossMoveTimer = 0;
+    bossPhase = "think";
+    bossExecSteps = 0;
+    coopKoFeed.textContent = "";
+    updateCoopHUD();
+  }
+
+  function startCoopGame() {
+    SFX.unlock();
+    resetCoop();
+    FX.clear();
+    setState("playing");
+    hideSoloOverlay();
+    hideVsOverlay();
+    SFX.start();
+    MUSIC.start();
+    lastTime = performance.now();
+    T.Online.startSync();
+  }
+
+  function endCoopGame(playerWon) {
+    if (state === "over") return;
+    setState("over");
+    MUSIC.stop();
+    T.Online.stopSync();
+    if (playerWon) {
+      SFX.win();
+      FX.burst(100, 200, "#58a858", 36, 4);
+      FX.showBanner("¡VICTORIA!", "perfect");
+      showVsOverlay("¡Victoria!", `¡Derrotaron al Boss! Tu daño: ${p.sent} · Amigo: ${b.sent}`, "Volver", false);
+    } else {
+      SFX.gameOver();
+      FX.burst(100, 200, "#b85048", 36, 4);
+      FX.shake(coopP1Wrap);
+      showVsOverlay("Derrota", `El Boss los aplastó. Daño recibido por el Boss: ${boss.lines} líneas`, "Volver", false);
+    }
+  }
+
+  function updateCoopHUD() {
+    if (!p || !b || !boss) return;
+    coopP1Sent.textContent = String(p.sent);
+    coopP2Sent.textContent = String(b.sent);
+    coopBossDamage.textContent = String(boss.lines);
+    
+    coopP1Garbage.style.setProperty("--g", String(Math.min(100, p.pendingGarbage * 5)));
+    coopP2Garbage.style.setProperty("--g", String(Math.min(100, b.pendingGarbage * 5)));
+    coopBossGarbage.style.setProperty("--g", String(Math.min(100, boss.pendingGarbage * 5)));
+  }
+
+  function flashKoCoop(text) {
+    coopKoFeed.textContent = text;
+    coopKoFeed.classList.remove("flash");
+    void coopKoFeed.offsetWidth;
+    coopKoFeed.classList.add("flash");
+  }
+
   // ——— UI overlays / modo ———
   function showSoloOverlay(title, msg, btnText, { showName = false, showMiniRank = false, showModes = false } = {}) {
     overlayTitle.textContent = title;
@@ -721,18 +854,18 @@ window.Tetris = window.Tetris || {};
     // Conexión Online panel show/hide
     const onlinePanel = $("online-conn-panel");
     if (onlinePanel) {
-      onlinePanel.classList.toggle("hidden", gameMode !== "online" || state === "playing");
+      onlinePanel.classList.toggle("hidden", (gameMode !== "online" && gameMode !== "coop") || state === "playing");
     }
     
-    // Ocultar botón start en menú online (se inicia por sincronización P2P)
-    btnStart.classList.toggle("hidden", gameMode === "online");
-    btnVsStart.classList.toggle("hidden", gameMode === "online");
+    // Ocultar botón start en menú online/coop (se inicia por sincronización P2P)
+    btnStart.classList.toggle("hidden", gameMode === "online" || gameMode === "coop");
+    btnVsStart.classList.toggle("hidden", gameMode === "online" || gameMode === "coop");
 
     // En overlay solo: mostrar diff si auto y hay mode picker o menú
     if (gameMode === "auto" && state !== "playing" && usesSoloLayout()) {
       vsDiffPicker.classList.remove("hidden");
     }
-    if (gameMode === "solo" || gameMode === "online") {
+    if (gameMode === "solo" || gameMode === "online" || gameMode === "coop") {
       vsDiffPicker.classList.add("hidden");
     }
     const diffLabel = $("diff-label");
@@ -743,7 +876,7 @@ window.Tetris = window.Tetris || {};
     btnMode.textContent = modeLabel();
     btnMode.classList.toggle("versus", gameMode === "versus");
     btnMode.classList.toggle("auto", gameMode === "auto");
-    btnMode.classList.toggle("online", gameMode === "online");
+    btnMode.classList.toggle("online", gameMode === "online" || gameMode === "coop");
     if (subtitle) subtitle.textContent = subtitleForMode();
   }
 
@@ -757,17 +890,19 @@ window.Tetris = window.Tetris || {};
   }
 
   function setGameMode(mode) {
-    if (mode !== "solo" && mode !== "auto" && mode !== "versus" && mode !== "online") return;
+    if (mode !== "solo" && mode !== "auto" && mode !== "versus" && mode !== "online" && mode !== "coop") return;
     
     // Apagar conexión online si cambiamos de modo
-    if (gameMode === "online" && mode !== "online" && T.Online) {
+    if ((gameMode === "online" || gameMode === "coop") && (mode !== "online" && mode !== "coop") && T.Online) {
       T.Online.shutdown();
     }
     
     setMode(mode);
     const isVs = mode === "versus" || mode === "online";
-    layoutSolo.classList.toggle("hidden", isVs);
+    const isCoop = mode === "coop";
+    layoutSolo.classList.toggle("hidden", isVs || isCoop);
     layoutVersus.classList.toggle("hidden", !isVs);
+    layoutCoop.classList.toggle("hidden", !isCoop);
     MUSIC.stop();
     FX.clear();
     resetAutoBrain();
@@ -777,6 +912,10 @@ window.Tetris = window.Tetris || {};
       resetOnline();
       if (T.Online) T.Online.init();
       showVsOverlay("Modo Online", "Copia tu código para tu amigo o ingresa el suyo.", "Jugar", false);
+    } else if (mode === "coop") {
+      resetCoop();
+      if (T.Online) T.Online.init();
+      showVsOverlay("Modo Cooperativo", "Copia tu código para tu amigo o ingresa el suyo para jugar 2v1 contra el Boss.", "Jugar", false);
     } else if (isVs) {
       resetVersus();
       showVsOverlay("Versus BOT", "Limpia líneas para enviar basura. El primero en top-out pierde.", "Desafiar BOT", true);
@@ -885,6 +1024,99 @@ window.Tetris = window.Tetris || {};
     }
   }
 
+  function tickBoss(dt) {
+    if (!boss || boss.dead || state !== "playing") return;
+    const cfg = {
+      thinkMs: [60, 120],
+      moveMs: 45,
+      dropInterval: 320
+    };
+
+    boss.dropAccumulator += dt;
+    if (E.collides(boss.grid, boss.current, 0, 1)) {
+      boss.lockDelay += dt;
+      if (boss.lockDelay >= T.LOCK_MS) {
+        seatLock(boss, null, { playSfx: false });
+        bossPlan = null;
+        bossPhase = "think";
+        bossThinkTimer = Bot.randRange(cfg.thinkMs[0], cfg.thinkMs[1]);
+        boss.dropAccumulator = 0;
+        boss.lockDelay = 0;
+        if (boss.dead) endCoopGame(true);
+        return;
+      }
+    } else {
+      boss.lockDelay = 0;
+      while (boss.dropAccumulator >= cfg.dropInterval) {
+        boss.dropAccumulator -= cfg.dropInterval;
+        seatTryMove(boss, 0, 1);
+      }
+    }
+
+    if (bossPhase === "think") {
+      bossThinkTimer -= dt;
+      if (bossThinkTimer <= 0) {
+        bossPlan = Bot.findBestMove(boss.grid, boss.current.type, {
+          weights: {
+            height: -0.65,
+            lines: 10.0,
+            holes: -8.0,
+            bumpiness: -0.22
+          }
+        });
+        bossPhase = "execute";
+        bossMoveTimer = 0;
+        bossExecSteps = 0;
+      }
+      return;
+    }
+
+    if (bossPhase === "execute" && bossPlan) {
+      bossMoveTimer -= dt;
+      if (bossMoveTimer > 0) return;
+      bossMoveTimer = cfg.moveMs;
+      bossExecSteps++;
+
+      if (bossExecSteps > 40) {
+        while (seatTryMove(boss, 0, 1));
+        boss.hardDropping = true;
+        seatLock(boss, null, { playSfx: false });
+        bossPlan = null;
+        bossPhase = "think";
+        bossThinkTimer = Bot.randRange(cfg.thinkMs[0], cfg.thinkMs[1]);
+        bossExecSteps = 0;
+        if (boss.dead) endCoopGame(true);
+        return;
+      }
+
+      if (boss.current.rotation !== bossPlan.rot) {
+        const kick = E.tryRotateOn(boss.grid, boss.current, 1);
+        if (kick < 0) bossExecSteps = 40;
+        else {
+          boss.lastRotated = true;
+          boss.lastKickIndex = kick;
+        }
+        return;
+      }
+      if (boss.current.x < bossPlan.x) {
+        if (!seatTryMove(boss, 1, 0)) bossPlan.x = boss.current.x;
+        return;
+      }
+      if (boss.current.x > bossPlan.x) {
+        if (!seatTryMove(boss, -1, 0)) bossPlan.x = boss.current.x;
+        return;
+      }
+      while (seatTryMove(boss, 0, 1));
+      boss.hardDropping = true;
+      seatLock(boss, null, { playSfx: false });
+      bossPlan = null;
+      bossPhase = "think";
+      bossThinkTimer = Bot.randRange(cfg.thinkMs[0], cfg.thinkMs[1]);
+      bossExecSteps = 0;
+      if (boss.dead) endCoopGame(true);
+    }
+  }
+
   function tickPlayerVs(dt) {
     if (!p || p.dead || state !== "playing") return;
     const interval = softDropping ? T.SOFT_DROP_INTERVAL : 700;
@@ -892,17 +1124,19 @@ window.Tetris = window.Tetris || {};
     if (E.collides(p.grid, p.current, 0, 1)) {
       p.lockDelay += dt;
       if (p.lockDelay >= T.LOCK_MS) {
-        seatLock(p, b, { playSfx: true });
+        seatLock(p, gameMode === "coop" ? boss : b, { playSfx: true });
         p.dropAccumulator = 0;
         p.lockDelay = 0;
         if (p.dead) {
-          if (gameMode === "online") {
+          if (gameMode === "coop") {
+            if (b.dead) endCoopGame(false);
+          } else if (gameMode === "online") {
             T.Online.send({ type: "sync", dead: true });
             endOnlineGame(false);
           } else {
             endVersus(false);
           }
-        } else if (b.dead) {
+        } else if (b.dead && gameMode !== "coop") {
           if (gameMode === "online") endOnlineGame(true);
           else endVersus(true);
         }
@@ -1034,6 +1268,38 @@ window.Tetris = window.Tetris || {};
       });
       R.drawMini(holdCtx, holdCanvas, holdType, !canHold && state === "playing");
       R.drawMini(nextCtx, nextCanvas, nextType);
+    } else if (gameMode === "coop") {
+      const showPieces = state === "playing" || state === "paused" || state === "over";
+      R.drawField(
+        coopP1BoardCtx,
+        coopP1BoardCanvas,
+        p ? p.grid : E.createGrid(),
+        showPieces && p ? p.current : null,
+        20,
+        state === "playing" || state === "paused",
+        { withFx: true }
+      );
+      R.drawField(
+        coopP2BoardCtx,
+        coopP2BoardCanvas,
+        b ? b.grid : E.createGrid(),
+        showPieces && b ? b.current : null,
+        20,
+        false
+      );
+      R.drawField(
+        coopBossBoardCtx,
+        coopBossBoardCanvas,
+        boss ? boss.grid : E.createGrid(),
+        showPieces && boss ? boss.current : null,
+        20,
+        false
+      );
+      R.drawMini(coopP1HoldCtx, coopP1HoldCanvas, p ? p.holdType : null, p && !p.canHold && state === "playing");
+      R.drawMini(coopP1NextCtx, coopP1NextCanvas, p ? p.nextType : null);
+      R.drawMini(coopP2HoldCtx, coopP2HoldCanvas, b ? b.holdType : null);
+      R.drawMini(coopP2NextCtx, coopP2NextCanvas, b ? b.nextType : null);
+      R.drawMini(coopBossNextCtx, coopBossNextCanvas, boss ? boss.nextType : null);
     } else {
       const showPieces = state === "playing" || state === "paused" || state === "over";
       R.drawField(
@@ -1059,7 +1325,13 @@ window.Tetris = window.Tetris || {};
     if (state === "playing") {
       if (gameMode === "solo") tickSolo(dt);
       else if (gameMode === "auto") tickAuto(dt);
-      else {
+      else if (gameMode === "coop") {
+        tickPlayerVs(dt);
+        if (T.Online && T.Online.isHost) {
+          tickBoss(dt);
+        }
+        updateCoopHUD();
+      } else {
         tickPlayerVs(dt);
         if (gameMode === "versus") tickBot(dt);
         updateVsHUD();
@@ -1176,7 +1448,7 @@ window.Tetris = window.Tetris || {};
 
     if (key === "Enter" || key === " ") {
       if (state === "menu" || state === "over") {
-        if (gameMode === "online") return;
+        if (gameMode === "online" || gameMode === "coop") return;
         if (usesSoloLayout()) {
           if (state === "over" && pendingScoreSave && key === "Enter") {
             commitScore();
@@ -1368,9 +1640,12 @@ window.Tetris = window.Tetris || {};
   lastTime = performance.now();
   T.p = p;
   T.b = b;
+  T.boss = boss;
   T.updateGarbageMeters = updateGarbageMeters;
   T.startOnlineGame = startOnlineGame;
   T.endOnlineGame = endOnlineGame;
+  T.startCoopGame = startCoopGame;
+  T.endCoopGame = endCoopGame;
 
   requestAnimationFrame(loop);
 })(window.Tetris);

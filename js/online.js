@@ -89,7 +89,8 @@ window.Tetris = window.Tetris || {};
         // El Host envía señal de inicio y el juego arranca
         setTimeout(() => {
           Online.send({ type: "start" });
-          T.startOnlineGame();
+          if (T.gameMode === "coop") T.startCoopGame();
+          else T.startOnlineGame();
         }, 1000);
       }
     });
@@ -144,11 +145,11 @@ window.Tetris = window.Tetris || {};
     switch (msg.type) {
       case "start":
         setStatus("Iniciando juego...", "success");
-        T.startOnlineGame();
+        if (T.gameMode === "coop") T.startCoopGame();
+        else T.startOnlineGame();
         break;
 
       case "sync":
-        // Sincronizar el estado del rival (asiento 'b' oponente)
         if (T.b) {
           T.b.grid = msg.grid;
           T.b.current = msg.current;
@@ -158,15 +159,67 @@ window.Tetris = window.Tetris || {};
           T.b.sent = msg.sent;
           T.b.dead = msg.dead;
           if (msg.dead) {
-            T.endOnlineGame(true); // Gana el local si el rival muere
+            T.endOnlineGame(true);
           }
         }
         break;
 
+      case "sync_guest":
+        if (T.b) {
+          T.b.grid = msg.grid;
+          T.b.current = msg.current;
+          T.b.holdType = msg.holdType;
+          T.b.nextType = msg.nextType;
+          T.b.lines = msg.lines;
+          T.b.sent = msg.sent;
+          T.b.dead = msg.dead;
+          
+          if (T.p && T.p.dead && T.b.dead) {
+            T.endCoopGame(false);
+          }
+          if (T.boss && T.boss.dead) {
+            T.endCoopGame(true);
+          }
+        }
+        break;
+
+      case "sync_host":
+        if (T.b && msg.hostState) {
+          T.b.grid = msg.hostState.grid;
+          T.b.current = msg.hostState.current;
+          T.b.holdType = msg.hostState.holdType;
+          T.b.nextType = msg.hostState.nextType;
+          T.b.lines = msg.hostState.lines;
+          T.b.sent = msg.hostState.sent;
+          T.b.dead = msg.hostState.dead;
+        }
+        if (T.boss && msg.bossState) {
+          T.boss.grid = msg.bossState.grid;
+          T.boss.current = msg.bossState.current;
+          T.boss.nextType = msg.bossState.nextType;
+          T.boss.lines = msg.bossState.lines;
+          T.boss.sent = msg.bossState.sent;
+          T.boss.dead = msg.bossState.dead;
+        }
+        if (T.p && T.p.dead && T.b && T.b.dead) {
+          T.endCoopGame(false);
+        }
+        if (T.boss && T.boss.dead) {
+          T.endCoopGame(true);
+        }
+        break;
+
       case "garbage":
-        // Recibir líneas de basura
         if (T.p && !T.p.dead) {
           T.p.pendingGarbage += msg.lines;
+          T.SFX.garbage();
+          T.updateGarbageMeters();
+        }
+        break;
+
+      case "garbage_to_boss":
+        if (T.boss && !T.boss.dead) {
+          T.boss.pendingGarbage += msg.lines;
           T.SFX.garbage();
           T.updateGarbageMeters();
         }
@@ -174,12 +227,47 @@ window.Tetris = window.Tetris || {};
     }
   };
 
-  // Enviar estado del jugador local periódicamente a 20 FPS
   Online.startSync = function () {
     if (Online.syncIntervalId) clearInterval(Online.syncIntervalId);
     Online.isPlaying = true;
     Online.syncIntervalId = setInterval(() => {
-      if (T.p) {
+      if (!T.p) return;
+
+      if (T.gameMode === "coop") {
+        if (!Online.isHost) {
+          Online.send({
+            type: "sync_guest",
+            grid: T.p.grid,
+            current: T.p.current,
+            holdType: T.p.holdType,
+            nextType: T.p.nextType,
+            lines: T.p.lines,
+            sent: T.p.sent,
+            dead: T.p.dead,
+          });
+        } else {
+          Online.send({
+            type: "sync_host",
+            hostState: {
+              grid: T.p.grid,
+              current: T.p.current,
+              holdType: T.p.holdType,
+              nextType: T.p.nextType,
+              lines: T.p.lines,
+              sent: T.p.sent,
+              dead: T.p.dead,
+            },
+            bossState: T.boss ? {
+              grid: T.boss.grid,
+              current: T.boss.current,
+              nextType: T.boss.nextType,
+              lines: T.boss.lines,
+              sent: T.boss.sent,
+              dead: T.boss.dead,
+            } : null
+          });
+        }
+      } else {
         Online.send({
           type: "sync",
           grid: T.p.grid,

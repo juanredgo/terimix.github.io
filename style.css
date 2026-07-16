@@ -1024,6 +1024,129 @@ kbd {
   letter-spacing: 0.03em;
 }
 
+/* ——— Coop Layout ——— */
+.coop-layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto 1fr;
+  gap: 0.6rem;
+  align-items: start;
+  justify-items: center;
+  width: 100%;
+}
+
+.coop-side {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.coop-side.coop-player1 {
+  justify-content: flex-end;
+}
+
+.coop-side.coop-player2 {
+  justify-content: flex-start;
+  flex-direction: row-reverse; /* Mirror layout */
+}
+
+.coop-side.coop-boss {
+  justify-content: flex-start;
+}
+
+.coop-label {
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-pixel);
+  font-size: 0.5rem;
+  letter-spacing: 0.25em;
+  margin-bottom: 0.4rem;
+}
+
+.coop-label.you {
+  color: var(--you);
+}
+
+.coop-label.friend {
+  color: var(--accent);
+}
+
+.coop-label.boss {
+  color: var(--danger);
+}
+
+.coop-side-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 90px;
+}
+
+.coop-side-panels canvas {
+  width: 80px;
+  height: 80px;
+}
+
+.coop-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding-top: 2.5rem;
+  min-width: 80px;
+}
+
+.coop-bot-name {
+  font-family: var(--font-pixel);
+  font-size: 0.35rem;
+  color: var(--danger);
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+/* Boss specific threat styling */
+.coop-boss .board-wrap {
+  border-color: #6a2e2e;
+  box-shadow: 
+    inset 0 0 0 1px #4a1a1a,
+    4px 4px 0 #0a0a04;
+}
+
+.coop-boss .board-wrap.shake {
+  border-color: var(--danger);
+}
+
+@media (max-width: 990px) {
+  .coop-layout {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 1.5rem;
+  }
+  .coop-side {
+    flex-direction: column;
+    align-items: center;
+  }
+  .coop-side.coop-player1,
+  .coop-side.coop-player2,
+  .coop-side.coop-boss {
+    justify-content: center;
+  }
+  .coop-side-panels {
+    flex-direction: row;
+    width: auto;
+    justify-content: center;
+  }
+  .coop-center {
+    padding-top: 0;
+    flex-direction: row;
+    gap: 0.8rem;
+  }
+}
+
 /* ——— Responsive ——— */
 @media (max-width: 900px) {
   .versus-layout {
