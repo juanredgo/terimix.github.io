@@ -331,9 +331,13 @@ window.Tetris = window.Tetris || {};
     const pressureMode = before.pressure > 18 || before.maxH >= 14 || before.holes >= 3;
     const center = (T.COLS - 1) / 2;
 
+    const skill = typeof cfg.skill === "number" ? cfg.skill : 0.7;
     let score = Bot.evaluateGrid(g2, { pressureMode });
-    score += Bot.holeDeltaBonus(before, after, pressureMode);
-    score += Bot.strategyBonus(before, after, cleared, tspin, type, piece.y, before.wellCol);
+    // skill bajo: menos castigo por huecos / menos genio ofensivo → más “humano”
+    const holeW = 0.55 + skill * 0.45;
+    const stratW = 0.4 + skill * 0.6;
+    score += Bot.holeDeltaBonus(before, after, pressureMode) * holeW;
+    score += Bot.strategyBonus(before, after, cleared, tspin, type, piece.y, before.wellCol) * stratW;
 
     // Leve preferencia al centro solo si no hay pozo de tetris
     if (before.tetrisWell < 3) score -= Math.abs(x + 1 - center) * 1.1;
@@ -383,14 +387,14 @@ window.Tetris = window.Tetris || {};
 
     let candidates = Bot.enumerateMoves(grid, type, before, cfg);
 
-    // Considerar HOLD si mejora (I/T para setups, o pieza mala con huecos)
-    if (cfg.canHold && (cfg.holdType || cfg.nextType)) {
+    // HOLD solo si la dificultad lo permite (Difícil; Boss normal/hard)
+    if (cfg.useHold && cfg.canHold && (cfg.holdType || cfg.nextType)) {
       const held = cfg.holdType || cfg.nextType;
       if (held && held !== type) {
         const holdMoves = Bot.enumerateMoves(grid, held, before, cfg);
         for (let i = 0; i < holdMoves.length; i++) {
           holdMoves[i].useHold = true;
-          holdMoves[i].score += 8; // hold es gratis si mejora
+          holdMoves[i].score += 8;
           candidates.push(holdMoves[i]);
         }
       }
@@ -398,8 +402,8 @@ window.Tetris = window.Tetris || {};
 
     if (!candidates.length) return null;
 
-    // Lookahead 1 pieza (normal/difícil; en fácil el ruido ya basta)
-    const doLookahead = cfg.nextType && (cfg.noise == null || cfg.noise <= 10);
+    // Lookahead 1 pieza solo en dificultades “smart” (cfg.lookahead)
+    const doLookahead = !!cfg.lookahead && !!cfg.nextType;
     if (doLookahead) {
       candidates.sort((a, b) => b.score - a.score);
       const topN = Math.min(8, candidates.length);
@@ -433,8 +437,13 @@ window.Tetris = window.Tetris || {};
         Math.abs(a.x - center) - Math.abs(b.x - center)
     );
 
-    if (Math.random() < mistakeChance && candidates.length > 3) {
-      const idx = 1 + Math.floor(Math.random() * Math.min(5, candidates.length - 1));
+    // Errores: a veces elige entre las peores del top (Normal/Fácil fallan más)
+    if (Math.random() < mistakeChance && candidates.length > 2) {
+      const pool = Math.min(
+        candidates.length - 1,
+        mistakeChance > 0.25 ? 8 : mistakeChance > 0.12 ? 6 : 4
+      );
+      const idx = 1 + Math.floor(Math.random() * pool);
       return candidates[idx];
     }
     return candidates[0];
@@ -473,6 +482,10 @@ window.Tetris = window.Tetris || {};
         if (api.getNextType) c.nextType = api.getNextType();
         if (api.getHoldType) c.holdType = api.getHoldType();
         if (api.canHold) c.canHold = !!api.canHold();
+        // flags de dificultad (default conservador si faltan)
+        if (c.lookahead == null) c.lookahead = false;
+        if (c.useHold == null) c.useHold = false;
+        if (c.skill == null) c.skill = 0.55;
         return c;
       },
 

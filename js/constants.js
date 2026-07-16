@@ -126,58 +126,82 @@ window.Tetris = window.Tetris || {};
     full: [400, 800, 1200, 1600],
   };
 
+  /**
+   * Dificultad del bot / boss.
+   * - mistakeChance / noise: más alto = más errores (Normal no debe aplastar).
+   * - lookahead / useHold: solo Difícil usa IA “completa”.
+   * - skill: 0–1 escala la agresividad ofensiva de la evaluación.
+   */
   T.BOT_DIFF = {
     easy: {
       label: "Fácil",
-      thinkMs: [380, 700],
-      moveMs: 90,
-      dropInterval: 900,
-      mistakeChance: 0.22,
-      noise: 18,
+      thinkMs: [420, 780],
+      moveMs: 100,
+      dropInterval: 980,
+      mistakeChance: 0.34,
+      noise: 28,
+      lookahead: false,
+      useHold: false,
+      skill: 0.35,
     },
     normal: {
       label: "Normal",
-      thinkMs: [180, 360],
-      moveMs: 55,
-      dropInterval: 650,
-      mistakeChance: 0.08,
-      noise: 8,
+      thinkMs: [240, 420],
+      moveMs: 70,
+      dropInterval: 720,
+      mistakeChance: 0.2,
+      noise: 16,
+      lookahead: false,
+      useHold: false,
+      skill: 0.55,
     },
     hard: {
       label: "Difícil",
-      thinkMs: [60, 140],
-      moveMs: 28,
-      dropInterval: 380,
-      mistakeChance: 0.02,
-      noise: 3,
+      thinkMs: [90, 180],
+      moveMs: 38,
+      dropInterval: 420,
+      mistakeChance: 0.07,
+      noise: 6,
+      lookahead: true,
+      useHold: true,
+      skill: 0.9,
     },
   };
 
-  /** Dificultad del Boss en coop 2v1 (un poco más agresivo que el bot normal). */
+  /** Boss coop 2v1: un peldaño por encima del bot, pero Normal jugable. */
   T.BOSS_DIFF = {
     easy: {
       label: "Fácil",
-      thinkMs: [280, 520],
-      moveMs: 70,
-      dropInterval: 780,
-      mistakeChance: 0.18,
-      noise: 14,
+      thinkMs: [320, 580],
+      moveMs: 85,
+      dropInterval: 860,
+      mistakeChance: 0.28,
+      noise: 22,
+      lookahead: false,
+      useHold: false,
+      skill: 0.4,
     },
     normal: {
       label: "Normal",
-      thinkMs: [100, 220],
-      moveMs: 42,
-      dropInterval: 480,
-      mistakeChance: 0.06,
-      noise: 6,
+      thinkMs: [180, 320],
+      moveMs: 58,
+      dropInterval: 600,
+      mistakeChance: 0.16,
+      noise: 12,
+      lookahead: false,
+      useHold: true,
+      skill: 0.65,
     },
     hard: {
       label: "Difícil",
-      thinkMs: [50, 110],
-      moveMs: 28,
-      dropInterval: 300,
-      mistakeChance: 0.015,
-      noise: 2,
+      thinkMs: [70, 140],
+      moveMs: 32,
+      dropInterval: 340,
+      mistakeChance: 0.05,
+      noise: 4,
+      lookahead: true,
+      useHold: true,
+      skill: 1,
     },
   };
 })(window.Tetris);

@@ -170,28 +170,12 @@ window.Tetris = window.Tetris || {};
   };
 
   /**
-   * Prepara un asiento KO para revivir: limpia filas superiores y reaparece pieza.
+   * Prepara un asiento KO para revivir: tablero totalmente limpio + pieza nueva.
+   * clearTop se ignora (compat online); siempre revive de cero.
    */
-  Engine.reviveSeat = function reviveSeat(seat, clearTop) {
+  Engine.reviveSeat = function reviveSeat(seat) {
     if (!seat) return;
-    const n = Math.max(0, Math.min(T.ROWS - 2, clearTop == null ? T.REVIVE_CLEAR_TOP : clearTop));
-    for (let r = 0; r < n; r++) {
-      seat.grid[r] = Array(T.COLS).fill(null);
-    }
-    // Baja el stack un poco si sigue muy alto
-    let topRow = T.ROWS;
-    for (let r = 0; r < T.ROWS; r++) {
-      if (seat.grid[r].some((c) => c !== null)) {
-        topRow = r;
-        break;
-      }
-    }
-    if (topRow < 4) {
-      for (let k = 0; k < 4 - topRow; k++) {
-        seat.grid.shift();
-        seat.grid.push(Array(T.COLS).fill(null));
-      }
-    }
+    seat.grid = Engine.createGrid();
     seat.dead = false;
     seat.pendingGarbage = 0;
     seat.lockDelay = 0;
@@ -200,9 +184,11 @@ window.Tetris = window.Tetris || {};
     seat.lastRotated = false;
     seat.lastKickIndex = 0;
     seat.canHold = true;
+    seat.backToBack = false;
     if (!seat.nextType) seat.nextType = Engine.nextFromBag(seat.bag);
     seat.current = Engine.spawnPiece(seat.nextType);
     seat.nextType = Engine.nextFromBag(seat.bag);
+    // Sin bloques no debería colisionar; por si el spawn va raro
     if (Engine.collides(seat.grid, seat.current)) {
       if (!Engine.collides(seat.grid, seat.current, 0, -1)) seat.current.y -= 1;
     }
