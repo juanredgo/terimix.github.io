@@ -125,6 +125,7 @@
             <li><kbd>↓</kbd> Bajar</li>
             <li><kbd>↑</kbd> / <kbd>X</kbd> Girar</li>
             <li><kbd>Z</kbd> Girar izq.</li>
+            <li><kbd>A</kbd> Girar 180°</li>
             <li><kbd>Espacio</kbd> Hard drop</li>
             <li><kbd>C</kbd> Hold</li>
             <li><kbd>P</kbd> / <kbd>Esc</kbd> Pausa</li>
@@ -335,13 +336,21 @@
         <div class="overlay-card" id="coop-overlay-card">
           <h2 id="coop-overlay-title">Modo Cooperativo</h2>
           <p id="coop-overlay-msg">Cargando...</p>
+          <div id="coop-diff-picker" class="vs-diff-picker">
+            <span class="diff-label" id="coop-diff-label">Dificultad del Boss</span>
+            <div class="diff-row">
+              <button type="button" class="diff-btn boss-diff-btn" data-boss-diff="easy">Fácil</button>
+              <button type="button" class="diff-btn boss-diff-btn active" data-boss-diff="normal">Normal</button>
+              <button type="button" class="diff-btn boss-diff-btn" data-boss-diff="hard">Difícil</button>
+            </div>
+          </div>
           <button id="btn-coop-back" type="button" class="btn-link">← Modo solo</button>
         </div>
       </div>
     </main>
 
     <footer class="footer">
-      <p>← → mover · ↑ girar · Espacio hard drop · V modo · M sonido · Online P2P</p>
+      <p>← → mover · ↑/X girar · Z izq · A 180° · Espacio hard drop · V modo · M sonido</p>
     </footer>
   </div>
 

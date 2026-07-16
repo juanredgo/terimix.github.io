@@ -208,13 +208,39 @@ window.Tetris = window.Tetris || {};
     }
   };
 
-  /** @returns {number} kick index, or -1 if failed */
+  /** @returns {number} kick index, or -1 if failed. dir: +1 CW, -1 CCW */
   Engine.tryRotateOn = function tryRotateOn(grid, piece, dir) {
     if (piece.type === "O") return 0;
     const from = piece.rotation;
     const to = (from + dir + 4) % 4;
     const key = `${from}>${to}`;
     const kicks = piece.type === "I" ? T.KICKS_I[key] : T.KICKS_JLSTZ[key];
+    if (!kicks) return -1;
+    for (let i = 0; i < kicks.length; i++) {
+      const [kx, ky] = kicks[i];
+      const ox = kx;
+      const oy = -ky;
+      if (!Engine.collides(grid, piece, ox, oy, to)) {
+        piece.rotation = to;
+        piece.x += ox;
+        piece.y += oy;
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  /**
+   * Rotación 180° con tabla de kicks dedicada.
+   * @returns {number} kick index, or -1 if failed
+   */
+  Engine.tryRotate180 = function tryRotate180(grid, piece) {
+    if (piece.type === "O") return 0;
+    const from = piece.rotation;
+    const to = (from + 2) % 4;
+    const key = `${from}>${to}`;
+    const table = piece.type === "I" ? T.KICKS_180_I : T.KICKS_180_JLSTZ;
+    const kicks = table[key] || [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0]];
     for (let i = 0; i < kicks.length; i++) {
       const [kx, ky] = kicks[i];
       const ox = kx;

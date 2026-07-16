@@ -13,6 +13,7 @@ window.Tetris = window.Tetris || {};
   T.MUTE_KEY = "tetris-muted";
   T.NAME_KEY = "tetris-player-name";
   T.DIFF_KEY = "tetris-bot-diff";
+  T.BOSS_DIFF_KEY = "tetris-boss-diff";
   T.LOCK_MS = 500;
   T.DAS = 170;
   T.ARR = 40;
@@ -101,6 +102,21 @@ window.Tetris = window.Tetris || {};
     "0>3": [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
   };
 
+  /** Kicks de rotación 180° (estilo guideline / community). ky en coords SRS. */
+  T.KICKS_180_JLSTZ = {
+    "0>2": [[0, 0], [1, 0], [2, 0], [1, 1], [2, 1], [-1, 0], [-2, 0], [-1, 1], [-2, 1], [0, -1], [3, 0], [-3, 0]],
+    "2>0": [[0, 0], [-1, 0], [-2, 0], [-1, -1], [-2, -1], [1, 0], [2, 0], [1, -1], [2, -1], [0, 1], [-3, 0], [3, 0]],
+    "1>3": [[0, 0], [0, 1], [0, 2], [-1, 1], [-1, 2], [0, -1], [0, -2], [-1, -1], [-1, -2], [1, 0], [0, 3], [0, -3]],
+    "3>1": [[0, 0], [0, 1], [0, 2], [1, 1], [1, 2], [0, -1], [0, -2], [1, -1], [1, -2], [-1, 0], [0, 3], [0, -3]],
+  };
+
+  T.KICKS_180_I = {
+    "0>2": [[0, 0], [-1, 0], [-2, 0], [1, 0], [2, 0], [0, 1]],
+    "2>0": [[0, 0], [1, 0], [2, 0], [-1, 0], [-2, 0], [0, -1]],
+    "1>3": [[0, 0], [0, 1], [0, 2], [0, -1], [0, -2], [-1, 0]],
+    "3>1": [[0, 0], [0, 1], [0, 2], [0, -1], [0, -2], [1, 0]],
+  };
+
   T.TYPES = Object.keys(T.SHAPES);
   T.LINE_SCORES = [0, 100, 300, 500, 800];
   T.GARBAGE_SENT = [0, 0, 1, 2, 4];
@@ -134,6 +150,34 @@ window.Tetris = window.Tetris || {};
       dropInterval: 380,
       mistakeChance: 0.02,
       noise: 3,
+    },
+  };
+
+  /** Dificultad del Boss en coop 2v1 (un poco más agresivo que el bot normal). */
+  T.BOSS_DIFF = {
+    easy: {
+      label: "Fácil",
+      thinkMs: [280, 520],
+      moveMs: 70,
+      dropInterval: 780,
+      mistakeChance: 0.18,
+      noise: 14,
+    },
+    normal: {
+      label: "Normal",
+      thinkMs: [100, 220],
+      moveMs: 42,
+      dropInterval: 480,
+      mistakeChance: 0.06,
+      noise: 6,
+    },
+    hard: {
+      label: "Difícil",
+      thinkMs: [50, 110],
+      moveMs: 28,
+      dropInterval: 300,
+      mistakeChance: 0.015,
+      noise: 2,
     },
   };
 })(window.Tetris);

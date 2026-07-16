@@ -115,6 +115,8 @@ window.Tetris = window.Tetris || {};
   let gameMode = "solo";
   let botDiff = localStorage.getItem(T.DIFF_KEY) || "normal";
   if (!T.BOT_DIFF[botDiff]) botDiff = "normal";
+  let bossDiff = localStorage.getItem(T.BOSS_DIFF_KEY) || "normal";
+  if (!T.BOSS_DIFF || !T.BOSS_DIFF[bossDiff]) bossDiff = "normal";
   let state = "menu";
   let lastTime = 0;
 
@@ -202,7 +204,10 @@ window.Tetris = window.Tetris || {};
     if (gameMode === "versus") return "Versus BOT · Chiptune · T-Spins";
     if (gameMode === "auto") return `Auto · BOT ${T.BOT_DIFF[botDiff].label} · Mira y disfruta`;
     if (gameMode === "online") return "Online P2P · vs Amigo · Sin Delay";
-    if (gameMode === "coop") return "Coop 2v1 · Revivir aliado · vs Boss";
+    if (gameMode === "coop") {
+      const bl = (T.BOSS_DIFF[bossDiff] && T.BOSS_DIFF[bossDiff].label) || "Normal";
+      return `Coop 2v1 · Boss ${bl} · Revivir aliado`;
+    }
     return "Chiptune · T-Spins · Ranking";
   }
 
@@ -647,6 +652,7 @@ window.Tetris = window.Tetris || {};
   }
 
   function soloTryRotate(dir) {
+    if (!current) return false;
     if (current.type === "O") {
       lastRotated = true;
       lastKickIndex = 0;
@@ -661,6 +667,75 @@ window.Tetris = window.Tetris || {};
       SFX.rotate();
       if (current.type === "T" && kick > 0) {
         FX.burst((current.x + 1.5) * 30, (current.y + 1.5) * 30, "#9868a8", 8, 1.8);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /** Giro de 180° (tecla A). */
+  function soloTryRotate180() {
+    if (!current) return false;
+    if (current.type === "O") {
+      lastRotated = true;
+      lastKickIndex = 0;
+      SFX.rotate();
+      return true;
+    }
+    const kick = E.tryRotate180(grid, current);
+    if (kick >= 0) {
+      lastRotated = true;
+      lastKickIndex = kick;
+      lockDelay = 0;
+      SFX.rotate();
+      if (current.type === "T") {
+        FX.burst((current.x + 1.5) * 30, (current.y + 1.5) * 30, "#9868a8", 10, 2);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function seatTryRotate(seat, dir) {
+    if (!seat || seat.dead || !seat.current) return false;
+    if (seat.current.type === "O") {
+      seat.lastRotated = true;
+      seat.lastKickIndex = 0;
+      SFX.rotate();
+      return true;
+    }
+    const kick = E.tryRotateOn(seat.grid, seat.current, dir);
+    if (kick >= 0) {
+      seat.lastRotated = true;
+      seat.lastKickIndex = kick;
+      seat.lockDelay = 0;
+      SFX.rotate();
+      const block = gameMode === "coop" ? 20 : 24;
+      if (seat.current.type === "T" && kick > 0) {
+        FX.burst((seat.current.x + 1.5) * block, (seat.current.y + 1.5) * block, "#9868a8", 8, 1.8);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function seatTryRotate180(seat) {
+    if (!seat || seat.dead || !seat.current) return false;
+    if (seat.current.type === "O") {
+      seat.lastRotated = true;
+      seat.lastKickIndex = 0;
+      SFX.rotate();
+      return true;
+    }
+    const kick = E.tryRotate180(seat.grid, seat.current);
+    if (kick >= 0) {
+      seat.lastRotated = true;
+      seat.lastKickIndex = kick;
+      seat.lockDelay = 0;
+      SFX.rotate();
+      const block = gameMode === "coop" ? 20 : 24;
+      if (seat.current.type === "T") {
+        FX.burst((seat.current.x + 1.5) * block, (seat.current.y + 1.5) * block, "#9868a8", 10, 2);
       }
       return true;
     }
@@ -819,7 +894,7 @@ window.Tetris = window.Tetris || {};
     T.b = b;
     T.boss = boss;
     reviveCharge = 0;
-    bossDriver.reset(T.BOT_DIFF.hard);
+    bossDriver.reset(T.BOSS_DIFF[bossDiff] || T.BOSS_DIFF.normal);
     coopKoFeed.textContent = "";
     updateCoopHUD();
     showRematchButton(false);
@@ -884,7 +959,11 @@ window.Tetris = window.Tetris || {};
     coopP1Sent.textContent = String(p.sent);
     coopP2Sent.textContent = String(b.sent);
     coopBossDamage.textContent = String(boss.lines);
-    
+    const lvlEl = document.querySelector(".stat-boss-lvl");
+    if (lvlEl && T.BOSS_DIFF[bossDiff]) {
+      lvlEl.textContent = T.BOSS_DIFF[bossDiff].label.toUpperCase();
+    }
+
     coopP1Garbage.style.setProperty("--g", String(Math.min(100, p.pendingGarbage * 5)));
     coopP2Garbage.style.setProperty("--g", String(Math.min(100, b.pendingGarbage * 5)));
     coopBossGarbage.style.setProperty("--g", String(Math.min(100, boss.pendingGarbage * 5)));
@@ -953,20 +1032,29 @@ window.Tetris = window.Tetris || {};
 
   function syncDiffButtons() {
     document.querySelectorAll(".diff-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.diff === botDiff);
+      if (btn.dataset.bossDiff != null) {
+        btn.classList.toggle("active", btn.dataset.bossDiff === bossDiff);
+      } else if (btn.dataset.diff != null) {
+        btn.classList.toggle("active", btn.dataset.diff === botDiff);
+      }
     });
     document.querySelectorAll(".mode-option").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.mode === gameMode);
     });
     const needDiff = (gameMode === "versus" || gameMode === "auto") && state !== "playing";
     vsDiffPicker.classList.toggle("hidden", !needDiff || state === "playing");
-    
+
+    const coopDiffPicker = $("coop-diff-picker");
+    if (coopDiffPicker) {
+      coopDiffPicker.classList.toggle("hidden", gameMode !== "coop" || state === "playing");
+    }
+
     // Conexión Online panel show/hide
     const onlinePanel = $("online-conn-panel");
     if (onlinePanel) {
       onlinePanel.classList.toggle("hidden", (gameMode !== "online" && gameMode !== "coop") || state === "playing");
     }
-    
+
     // Ocultar botón start en menú online/coop (se inicia por sincronización P2P)
     btnStart.classList.toggle("hidden", gameMode === "online" || gameMode === "coop");
     btnVsStart.classList.toggle("hidden", gameMode === "online" || gameMode === "coop");
@@ -995,6 +1083,14 @@ window.Tetris = window.Tetris || {};
     botDiff = d;
     localStorage.setItem(T.DIFF_KEY, d);
     vsBotLabel.textContent = `BOT · ${T.BOT_DIFF[botDiff].label}`;
+    syncDiffButtons();
+    SFX.ui();
+  }
+
+  function setBossDiff(d) {
+    if (!T.BOSS_DIFF || !T.BOSS_DIFF[d]) return;
+    bossDiff = d;
+    localStorage.setItem(T.BOSS_DIFF_KEY, d);
     syncDiffButtons();
     SFX.ui();
   }
@@ -1035,7 +1131,10 @@ window.Tetris = window.Tetris || {};
     } else if (mode === "coop") {
       resetCoop();
       if (T.Online) T.Online.init();
-      showCoopOverlay("Modo Cooperativo", "Copia tu código para tu amigo o ingresa el suyo para jugar 2v1 contra el Boss.");
+      showCoopOverlay(
+        "Modo Cooperativo",
+        "Elige dificultad del Boss, copia tu código o conecta al de tu amigo. 2v1 con revivir."
+      );
     } else if (isVs) {
       resetVersus();
       showVsOverlay("Versus BOT", "Limpia líneas para enviar basura. El primero en top-out pierde.", "Desafiar BOT", true);
@@ -1116,14 +1215,7 @@ window.Tetris = window.Tetris || {};
 
   function tickBoss(dt) {
     if (!boss || boss.dead || state !== "playing") return;
-    // cfg completo (noise/mistakeChance) — sin esto la IA se sesgaba a un muro
-    const cfg = {
-      thinkMs: [80, 160],
-      moveMs: 40,
-      dropInterval: 360,
-      mistakeChance: 0.03,
-      noise: 3,
-    };
+    const cfg = T.BOSS_DIFF[bossDiff] || T.BOSS_DIFF.normal;
 
     if (E.collides(boss.grid, boss.current, 0, 1)) {
       boss.lockDelay += dt;
@@ -1506,31 +1598,18 @@ window.Tetris = window.Tetris || {};
       case "x":
       case "X":
         if (gameMode === "solo") soloTryRotate(1);
-        else if (p) {
-          const kick = E.tryRotateOn(p.grid, p.current, 1);
-          if (kick >= 0) {
-            p.lastRotated = true;
-            p.lastKickIndex = kick;
-            p.lockDelay = 0;
-            SFX.rotate();
-            if (p.current.type === "T" && kick > 0) {
-              FX.burst((p.current.x + 1.5) * 24, (p.current.y + 1.5) * 24, "#9868a8", 8, 1.8);
-            }
-          }
-        }
+        else if (gameMode !== "auto" && p) seatTryRotate(p, 1);
         break;
       case "z":
       case "Z":
         if (gameMode === "solo") soloTryRotate(-1);
-        else if (p) {
-          const kick = E.tryRotateOn(p.grid, p.current, -1);
-          if (kick >= 0) {
-            p.lastRotated = true;
-            p.lastKickIndex = kick;
-            p.lockDelay = 0;
-            SFX.rotate();
-          }
-        }
+        else if (p) seatTryRotate(p, -1);
+        break;
+      case "a":
+      case "A":
+        // Giro 180°
+        if (gameMode === "solo") soloTryRotate180();
+        else if (p) seatTryRotate180(p);
         break;
       case " ":
       case "Spacebar":
@@ -1607,7 +1686,10 @@ window.Tetris = window.Tetris || {};
     SFX.ui();
   });
   document.querySelectorAll(".diff-btn").forEach((btn) => {
-    btn.addEventListener("click", () => setBotDiff(btn.dataset.diff));
+    btn.addEventListener("click", () => {
+      if (btn.dataset.bossDiff) setBossDiff(btn.dataset.bossDiff);
+      else if (btn.dataset.diff) setBotDiff(btn.dataset.diff);
+    });
   });
   btnSaveScore.addEventListener("click", () => commitScore());
   btnMute.addEventListener("click", () => {
