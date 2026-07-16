@@ -27,39 +27,43 @@ window.Tetris = window.Tetris || {};
    * y borde oscuro abajo-der, como los Tetris de NES/GB.
    */
   Render.drawBlock = function drawBlock(ctx, x, y, color, size, ghost) {
-    const pad = 1;
-    const px = x * size + pad;
-    const py = y * size + pad;
-    const s = size - pad * 2;
+    // 1px de hueco entre celdas para que el bloque coincida con la rejilla
+    const pad = size >= 20 ? 1 : 0.5;
+    const px = Math.floor(x * size + pad);
+    const py = Math.floor(y * size + pad);
+    const s = Math.max(1, Math.floor(size - pad * 2));
 
     if (ghost) {
+      ctx.save();
+      ctx.globalAlpha = 0.4;
       ctx.strokeStyle = color;
-      ctx.globalAlpha = 0.35;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(px + 1, py + 1, s - 2, s - 2);
-      ctx.globalAlpha = 1;
+      ctx.lineWidth = Math.max(1, Math.floor(size / 16));
+      ctx.strokeRect(px + 0.5, py + 0.5, s - 1, s - 1);
+      ctx.restore();
       return;
     }
 
-    const bevel = Math.max(2, Math.floor(s * 0.18));
+    const bevel = Math.max(1, Math.min(Math.floor(s * 0.16), Math.floor(s / 3)));
 
-    // cara principal
+    // cara principal (nunca más grande que la celda)
     ctx.fillStyle = color;
     ctx.fillRect(px, py, s, s);
 
     // borde claro: arriba y izquierda
     ctx.fillStyle = Render.shade(color, 0.35);
-    ctx.fillRect(px, py, s, bevel);          // top
-    ctx.fillRect(px, py, bevel, s);          // left
+    ctx.fillRect(px, py, s, bevel);
+    ctx.fillRect(px, py, bevel, s);
 
     // borde oscuro: abajo y derecha
     ctx.fillStyle = Render.shade(color, -0.35);
-    ctx.fillRect(px, py + s - bevel, s, bevel);  // bottom
-    ctx.fillRect(px + s - bevel, py, bevel, s);  // right
+    ctx.fillRect(px, py + s - bevel, s, bevel);
+    ctx.fillRect(px + s - bevel, py, bevel, s);
 
     // esquina interior (brillo)
-    ctx.fillStyle = Render.shade(color, 0.5);
-    ctx.fillRect(px + bevel, py + bevel, bevel, bevel);
+    if (bevel >= 2) {
+      ctx.fillStyle = Render.shade(color, 0.5);
+      ctx.fillRect(px + bevel, py + bevel, Math.max(1, bevel - 1), Math.max(1, bevel - 1));
+    }
   };
 
   Render.drawField = function drawField(ctx, canvas, grid, piece, block, showGhost, opts) {
@@ -131,11 +135,14 @@ window.Tetris = window.Tetris || {};
     var matrix = T.SHAPES[type][0];
     var rows = matrix.length;
     var cols = matrix[0].length;
-    var size = Math.min(22, Math.floor((canvas.width - 12) / Math.max(cols, 4)));
+    // Tamaño de celda exacto para que la pieza quepa sin verse “hinchada”
+    var pad = 8;
+    var size = Math.floor(Math.min((canvas.width - pad) / Math.max(cols, 4), (canvas.height - pad) / Math.max(rows, 4)));
+    size = Math.max(8, Math.min(size, 22));
     var totalW = cols * size;
     var totalH = rows * size;
     ctx.save();
-    ctx.translate((canvas.width - totalW) / 2, (canvas.height - totalH) / 2);
+    ctx.translate(Math.floor((canvas.width - totalW) / 2), Math.floor((canvas.height - totalH) / 2));
     if (dimmed) ctx.globalAlpha = 0.3;
     for (var r = 0; r < rows; r++) {
       for (var c = 0; c < cols; c++) {

@@ -1044,12 +1044,13 @@ window.Tetris = window.Tetris || {};
 
   function tickBoss(dt) {
     if (!boss || boss.dead || state !== "playing") return;
+    // cfg completo (noise/mistakeChance) — sin esto la IA se sesgaba a un muro
     const cfg = {
-      thinkMs: [60, 120],
-      moveMs: 45,
-      dropInterval: 320,
-      mistakeChance: 0.01,
-      noise: 2,
+      thinkMs: [80, 160],
+      moveMs: 40,
+      dropInterval: 360,
+      mistakeChance: 0.03,
+      noise: 3,
     };
 
     if (E.collides(boss.grid, boss.current, 0, 1)) {

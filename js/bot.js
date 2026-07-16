@@ -14,6 +14,7 @@ window.Tetris = window.Tetris || {};
     let aggregate = 0;
     let bumpiness = 0;
     let completed = 0;
+    let wells = 0;
 
     for (let c = 0; c < T.COLS; c++) {
       let found = false;
@@ -34,18 +35,39 @@ window.Tetris = window.Tetris || {};
     for (let c = 0; c < T.COLS - 1; c++) {
       bumpiness += Math.abs(heights[c] - heights[c + 1]);
     }
+    // Pozos profundos (un solo hueco entre columnas altas) — castigan apilar a un lado
+    for (let c = 0; c < T.COLS; c++) {
+      const left = c === 0 ? T.ROWS : heights[c - 1];
+      const right = c === T.COLS - 1 ? T.ROWS : heights[c + 1];
+      const depth = Math.min(left, right) - heights[c];
+      if (depth > 0) wells += depth;
+    }
     for (let r = 0; r < T.ROWS; r++) {
       if (grid[r].every((cell) => cell !== null)) completed++;
     }
-    return completed * 760 - aggregate * 18 - holes * 95 - bumpiness * 12 - Math.max(...heights) * 8;
+    const maxH = Math.max.apply(null, heights);
+    // Preferir tablero plano y bajo; no recompensar “pegarse a la pared”
+    return (
+      completed * 800 -
+      aggregate * 22 -
+      holes * 140 -
+      bumpiness * 28 -
+      maxH * 30 -
+      wells * 18
+    );
   };
 
   Bot.findBestMove = function findBestMove(grid, type, cfg) {
     const E = T.Engine;
+    cfg = cfg || {};
+    const noise = typeof cfg.noise === "number" ? cfg.noise : 4;
+    const mistakeChance = typeof cfg.mistakeChance === "number" ? cfg.mistakeChance : 0.05;
     const candidates = [];
     const maxRot = type === "O" ? 1 : 4;
+    const center = (T.COLS - 1) / 2;
+
     for (let rot = 0; rot < maxRot; rot++) {
-      for (let x = -2; x < T.COLS; x++) {
+      for (let x = -2; x < T.COLS + 2; x++) {
         const piece = { type, rotation: rot, x, y: type === "I" ? -1 : 0 };
         if (E.collides(grid, piece)) continue;
         while (!E.collides(grid, piece, 0, 1)) piece.y++;
@@ -53,14 +75,18 @@ window.Tetris = window.Tetris || {};
         const topOut = E.lockOntoGrid(g2, piece);
         if (topOut) continue;
         const { cleared } = E.clearFullLines(g2);
-        let score = Bot.evaluateGrid(g2) + cleared * 120;
-        score += (Math.random() - 0.5) * cfg.noise * 2;
+        // Bonus por líneas + leve preferencia al centro (evita torre en un muro)
+        let score = Bot.evaluateGrid(g2) + cleared * 180;
+        score -= Math.abs(x + 1 - center) * 1.2;
+        score -= piece.y * 0.4; // premia aterrizajes bajos
+        score += (Math.random() - 0.5) * noise * 2;
+        if (!Number.isFinite(score)) score = -1e9;
         candidates.push({ rot, x, score, cleared, y: piece.y });
       }
     }
     if (!candidates.length) return null;
-    candidates.sort((a, b) => b.score - a.score);
-    if (Math.random() < cfg.mistakeChance && candidates.length > 3) {
+    candidates.sort((a, b) => b.score - a.score || Math.abs(a.x - center) - Math.abs(b.x - center));
+    if (Math.random() < mistakeChance && candidates.length > 3) {
       const idx = 1 + Math.floor(Math.random() * Math.min(5, candidates.length - 1));
       return candidates[idx];
     }
@@ -137,7 +163,7 @@ window.Tetris = window.Tetris || {};
         if (this.phase === "execute") {
           this.moveTimer -= dt;
           if (this.moveTimer > 0) return "moving";
-          this.moveTimer = cfg.moveMs;
+          this.moveTimer = cfg.moveMs || 50;
           this.steps++;
 
           const forceDrop = () => {
@@ -147,19 +173,38 @@ window.Tetris = window.Tetris || {};
             return "locked";
           };
 
-          if (!this.plan || this.steps > 40) return forceDrop();
+          // Sin plan o atascado demasiado: replanificar una vez, luego soltar
+          if (!this.plan) {
+            this.plan = Bot.findBestMove(api.getGrid(), piece.type, cfg);
+            if (!this.plan) return forceDrop();
+          }
+          if (this.steps > 48) return forceDrop();
 
+          // Rotar hasta la orientación objetivo (máx 3 intentos por tick lógico)
           if (piece.rotation !== this.plan.rot) {
+            const before = piece.rotation;
             const kick = api.tryRotateCW();
-            if (kick < 0) this.steps = 40;
+            if (kick < 0 || piece.rotation === before) {
+              // No puede girar aquí: replanifica desde la orientación actual
+              this.plan = Bot.findBestMove(api.getGrid(), piece.type, cfg);
+              if (!this.plan) return forceDrop();
+            }
             return "moving";
           }
+
           if (piece.x < this.plan.x) {
-            if (!api.tryMove(1, 0)) this.plan.x = piece.x;
+            if (!api.tryMove(1, 0)) {
+              // Bloqueado a la derecha: replanifica o drop
+              this.plan = Bot.findBestMove(api.getGrid(), piece.type, cfg);
+              if (!this.plan || piece.x === this.plan.x) return forceDrop();
+            }
             return "moving";
           }
           if (piece.x > this.plan.x) {
-            if (!api.tryMove(-1, 0)) this.plan.x = piece.x;
+            if (!api.tryMove(-1, 0)) {
+              this.plan = Bot.findBestMove(api.getGrid(), piece.type, cfg);
+              if (!this.plan || piece.x === this.plan.x) return forceDrop();
+            }
             return "moving";
           }
           return forceDrop();
