@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tetris</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>TETRIS</h1>
+      <p class="subtitle" id="subtitle">Cliptune · T-Spins · Versus</p>
+      <div class="header-actions">
+        <button type="button" id="btn-mute" class="icon-btn" title="Silenciar / Activar audio" aria-label="Audio">🔊</button>
+        <button type="button" id="btn-ranking" class="icon-btn" title="Ver ranking" aria-label="Ranking">🏆</button>
+        <button type="button" id="btn-mode" class="icon-btn mode-btn" title="Cambiar modo" aria-label="Modo">1P</button>
+      </div>
+    </header>
+
+    <!-- ========== SOLO ========== -->
+    <main id="layout-solo" class="game-layout">
+      <aside class="panel panel-left">
+        <div class="panel-block">
+          <h2>HOLD</h2>
+          <canvas id="hold" width="120" height="120"></canvas>
+        </div>
+        <div class="panel-block stats">
+          <div class="stat">
+            <span class="stat-label">Puntos</span>
+            <span class="stat-value" id="score">0</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Líneas</span>
+            <span class="stat-value" id="lines">0</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Nivel</span>
+            <span class="stat-value" id="level">1</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Récord</span>
+            <span class="stat-value stat-record" id="high-score">0</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">T-Spins</span>
+            <span class="stat-value stat-tspin" id="tspin-count">0</span>
+          </div>
+        </div>
+      </aside>
+
+      <section class="board-wrap" id="solo-board-wrap">
+        <canvas id="board" width="300" height="600"></canvas>
+        <div id="fx-banner" class="fx-banner" aria-hidden="true"></div>
+        <div id="overlay" class="overlay hidden">
+          <div class="overlay-card">
+            <h2 id="overlay-title">Pausa</h2>
+            <p id="overlay-msg">Pulsa Enter o Espacio</p>
+
+            <div id="mode-picker" class="mode-picker">
+              <button type="button" class="mode-option active" data-mode="solo">
+                <span class="mode-option-title">Solo</span>
+                <span class="mode-option-desc">Clásico</span>
+              </button>
+              <button type="button" class="mode-option" data-mode="auto">
+                <span class="mode-option-title">Auto</span>
+                <span class="mode-option-desc">Ver Bot</span>
+              </button>
+              <button type="button" class="mode-option" data-mode="versus">
+                <span class="mode-option-title">Versus</span>
+                <span class="mode-option-desc">vs BOT</span>
+              </button>
+              <button type="button" class="mode-option" data-mode="online">
+                <span class="mode-option-title">Online</span>
+                <span class="mode-option-desc">vs Amigo</span>
+              </button>
+            </div>
+
+            <!-- Formulario de Conexión Online -->
+            <div id="online-conn-panel" class="online-conn-panel hidden">
+              <div class="online-box">
+                <span class="online-label">Tu código de sala:</span>
+                <div class="online-row">
+                  <span id="my-peer-id" class="peer-id-display">Cargando...</span>
+                  <button type="button" id="btn-copy-id" class="copy-btn">Copiar</button>
+                </div>
+              </div>
+              <div class="online-box">
+                <span class="online-label">Código del amigo:</span>
+                <div class="online-row">
+                  <input id="friend-peer-id" type="text" maxlength="6" placeholder="CÓDIGO" autocomplete="off" spellcheck="false" />
+                  <button type="button" id="btn-connect-online">Conectar</button>
+                </div>
+              </div>
+              <div id="online-status" class="online-status">Desconectado</div>
+            </div>
+
+            <div id="vs-diff-picker" class="vs-diff-picker hidden">
+              <span class="diff-label" id="diff-label">Dificultad del bot</span>
+              <div class="diff-row">
+                <button type="button" class="diff-btn" data-diff="easy">Fácil</button>
+                <button type="button" class="diff-btn active" data-diff="normal">Normal</button>
+                <button type="button" class="diff-btn" data-diff="hard">Difícil</button>
+              </div>
+            </div>
+
+            <div id="name-form" class="name-form hidden">
+              <label for="player-name">¡Top 10! Escribe tu nombre</label>
+              <div class="name-row">
+                <input id="player-name" type="text" maxlength="12" placeholder="Jugador" autocomplete="off" spellcheck="false" />
+                <button type="button" id="btn-save-score">Guardar</button>
+              </div>
+            </div>
+
+            <div id="overlay-ranking" class="mini-ranking hidden"></div>
+
+            <button id="btn-start" type="button">Jugar</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel panel-right">
+        <div class="panel-block">
+          <h2>SIGUIENTE</h2>
+          <canvas id="next" width="120" height="120"></canvas>
+        </div>
+        <div class="panel-block ranking-block">
+          <h2>RANKING</h2>
+          <ol id="ranking-list" class="ranking-list"></ol>
+          <p id="ranking-empty" class="ranking-empty">Sin partidas aún</p>
+        </div>
+        <div class="panel-block controls">
+          <h2>Controles</h2>
+          <ul>
+            <li><kbd>←</kbd><kbd>→</kbd> Mover</li>
+            <li><kbd>↓</kbd> Bajar</li>
+            <li><kbd>↑</kbd> / <kbd>X</kbd> Girar</li>
+            <li><kbd>Z</kbd> Girar izq.</li>
+            <li><kbd>Espacio</kbd> Hard drop</li>
+            <li><kbd>C</kbd> Hold</li>
+            <li><kbd>P</kbd> / <kbd>Esc</kbd> Pausa</li>
+            <li><kbd>V</kbd> Cambiar modo</li>
+            <li><kbd>M</kbd> Sonido · <kbd>R</kbd> Ranking</li>
+          </ul>
+        </div>
+      </aside>
+    </main>
+
+    <!-- ========== VERSUS ========== -->
+    <main id="layout-versus" class="versus-layout hidden">
+      <div class="vs-side vs-player">
+        <div class="vs-label you">TÚ</div>
+        <div class="vs-side-panels">
+          <div class="panel-block mini">
+            <h2>HOLD</h2>
+            <canvas id="vs-hold" width="96" height="96"></canvas>
+          </div>
+          <div class="panel-block mini stats-compact">
+            <div class="stat">
+              <span class="stat-label">Líneas</span>
+              <span class="stat-value" id="vs-p-lines">0</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Enviado</span>
+              <span class="stat-value" id="vs-p-sent">0</span>
+            </div>
+          </div>
+          <div class="panel-block mini">
+            <h2>NEXT</h2>
+            <canvas id="vs-next" width="96" height="96"></canvas>
+          </div>
+        </div>
+        <div class="board-wrap vs-board-wrap" id="vs-player-wrap">
+          <div class="garbage-meter" id="vs-p-garbage" title="Basura entrante"></div>
+          <canvas id="vs-board" width="240" height="480"></canvas>
+          <div id="vs-fx-banner" class="fx-banner" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <div class="vs-center">
+        <div class="vs-badge">VS</div>
+        <div class="vs-bot-name" id="vs-bot-label">BOT · Normal</div>
+        <div class="vs-ko" id="vs-ko-feed"></div>
+      </div>
+
+      <div class="vs-side vs-bot">
+        <div class="vs-label bot">BOT</div>
+        <div class="board-wrap vs-board-wrap">
+          <div class="garbage-meter" id="vs-b-garbage" title="Basura entrante"></div>
+          <canvas id="bot-board" width="240" height="480"></canvas>
+        </div>
+        <div class="vs-side-panels">
+          <div class="panel-block mini">
+            <h2>NEXT</h2>
+            <canvas id="bot-next" width="96" height="96"></canvas>
+          </div>
+          <div class="panel-block mini stats-compact">
+            <div class="stat">
+              <span class="stat-label">Líneas</span>
+              <span class="stat-value" id="vs-b-lines">0</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Enviado</span>
+              <span class="stat-value" id="vs-b-sent">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overlay compartido también cubre versus vía portal visual: reutilizamos el de solo moviendo o un clon -->
+      <div id="vs-overlay" class="overlay vs-full-overlay hidden">
+        <div class="overlay-card">
+          <h2 id="vs-overlay-title">Versus</h2>
+          <p id="vs-overlay-msg">Elige dificultad y juega</p>
+          <div id="vs-overlay-diff" class="vs-diff-picker">
+            <span class="diff-label">Dificultad del bot</span>
+            <div class="diff-row">
+              <button type="button" class="diff-btn" data-diff="easy">Fácil</button>
+              <button type="button" class="diff-btn active" data-diff="normal">Normal</button>
+              <button type="button" class="diff-btn" data-diff="hard">Difícil</button>
+            </div>
+          </div>
+          <button id="btn-vs-start" type="button">Desafiar BOT</button>
+          <button id="btn-back-solo" type="button" class="btn-link">← Modo solo</button>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>← → mover · ↑ girar · Espacio hard drop · V versus · M sonido</p>
+    </footer>
+  </div>
+
+  <div id="ranking-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ranking-modal-title">
+    <div class="modal-card">
+      <header class="modal-header">
+        <h2 id="ranking-modal-title">Ranking local (modo solo)</h2>
+        <button type="button" id="btn-close-ranking" class="icon-btn" aria-label="Cerrar">✕</button>
+      </header>
+      <ol id="ranking-modal-list" class="ranking-list ranking-list-full"></ol>
+      <p id="ranking-modal-empty" class="ranking-empty hidden">Aún no hay puntuaciones guardadas.</p>
+      <div class="modal-actions">
+        <button type="button" id="btn-clear-ranking" class="btn-danger">Borrar ranking</button>
+        <button type="button" id="btn-close-ranking-2" class="btn-secondary">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Módulos en orden de dependencia (sin bundler; funciona abriendo el HTML) -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="js/constants.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/ranking.js"></script>
+  <script src="js/bot.js"></script>
+  <script src="js/online.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
