@@ -406,7 +406,7 @@ window.Tetris = window.Tetris || {};
   /** El jugador vivo acumula líneas para revivir al amigo. */
   function tryCoopReviveCharge(cleared) {
     if (!b || !b.dead || !p || p.dead) return;
-    const need = T.REVIVE_LINES_NEED || 3;
+    const need = T.REVIVE_LINES_NEED || 10;
     reviveCharge += cleared;
     const shown = Math.min(reviveCharge, need);
     flashKoCoop(`Revivir amigo ${shown}/${need}`);
@@ -903,6 +903,11 @@ window.Tetris = window.Tetris || {};
 
   function startCoopGame() {
     SFX.unlock();
+    // Asegurar que la etiqueta del boss coincide con la diff actual (tras revancha)
+    if (T.BOSS_DIFF[bossDiff]) {
+      const lvlEl = document.querySelector(".stat-boss-lvl");
+      if (lvlEl) lvlEl.textContent = T.BOSS_DIFF[bossDiff].label.toUpperCase();
+    }
     resetCoop();
     FX.clear();
     setState("playing");
@@ -1096,7 +1101,12 @@ window.Tetris = window.Tetris || {};
     const fromNet = opts && opts.fromNet;
     if (!fromNet) localStorage.setItem(T.BOSS_DIFF_KEY, d);
     syncDiffButtons();
-    updateCoopHUD();
+    // Actualizar etiqueta del boss aunque no haya partida (revancha / menú coop)
+    const lvlEl = document.querySelector(".stat-boss-lvl");
+    if (lvlEl && T.BOSS_DIFF[bossDiff]) {
+      lvlEl.textContent = T.BOSS_DIFF[bossDiff].label.toUpperCase();
+    }
+    if (p && b && boss) updateCoopHUD();
     if (!fromNet) SFX.ui();
   }
 

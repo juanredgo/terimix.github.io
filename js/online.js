@@ -465,9 +465,19 @@ window.Tetris = window.Tetris || {};
       }
       case "start":
         setStatus("Iniciando partida...", "success");
-        // Host manda la dificultad del boss; el invitado solo refleja la etiqueta/IA
+        // Host manda la dificultad del boss; el invitado la aplica antes de arrancar
         if (msg.bossDiff && typeof T.applyBossDiff === "function") {
-          T.applyBossDiff(msg.bossDiff, { fromNet: true });
+          T.applyBossDiff(String(msg.bossDiff), { fromNet: true });
+        } else if (
+          T.gameMode === "coop" &&
+          !Online.isHost &&
+          typeof T.applyBossDiff === "function"
+        ) {
+          // Fallback: si el start viejo no trae diff, pedir no; usar normal explícito no —
+          // dejamos la actual pero refrescamos HUD por si la UI se quedó vieja
+          if (typeof T.getBossDiff === "function" && T.getBossDiff()) {
+            T.applyBossDiff(T.getBossDiff(), { fromNet: true });
+          }
         }
         if (!Online.isHost) launchGame();
         break;
@@ -658,8 +668,9 @@ window.Tetris = window.Tetris || {};
     }
     Online.send({ type: "rematch" });
     setStatus("Pidiendo revancha...", "warn");
+    // Host arranca y SIEMPRE manda bossDiff (antes el start de revancha lo omitía)
     if (Online.isHost) {
-      Online.send({ type: "start", mode: currentMode(), rematch: true });
+      Online.send(buildStartPayload({ rematch: true }));
       launchGame();
     }
   };

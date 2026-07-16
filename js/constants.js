@@ -19,7 +19,7 @@ window.Tetris = window.Tetris || {};
   T.ARR = 40;
   T.SOFT_DROP_INTERVAL = 100;
   /** Líneas que debe limpiar el compañero vivo para revivir al KO en coop */
-  T.REVIVE_LINES_NEED = 5;
+  T.REVIVE_LINES_NEED = 10;
   /** Filas superiores que se limpian al revivir (aire fresco) */
   T.REVIVE_CLEAR_TOP = 8;
 
