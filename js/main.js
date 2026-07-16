@@ -117,6 +117,7 @@ window.Tetris = window.Tetris || {};
   if (!T.BOT_DIFF[botDiff]) botDiff = "normal";
   let bossDiff = localStorage.getItem(T.BOSS_DIFF_KEY) || "normal";
   if (!T.BOSS_DIFF || !T.BOSS_DIFF[bossDiff]) bossDiff = "normal";
+  T.bossDiff = bossDiff;
   let state = "menu";
   let lastTime = 0;
 
@@ -1087,12 +1088,25 @@ window.Tetris = window.Tetris || {};
     SFX.ui();
   }
 
-  function setBossDiff(d) {
+  function setBossDiff(d, opts) {
     if (!T.BOSS_DIFF || !T.BOSS_DIFF[d]) return;
     bossDiff = d;
-    localStorage.setItem(T.BOSS_DIFF_KEY, d);
+    T.bossDiff = d;
+    // Solo el host guarda preferencia local; el invitado refleja la del host
+    const fromNet = opts && opts.fromNet;
+    if (!fromNet) localStorage.setItem(T.BOSS_DIFF_KEY, d);
     syncDiffButtons();
-    SFX.ui();
+    updateCoopHUD();
+    if (!fromNet) SFX.ui();
+  }
+
+  /** Aplica dificultad del boss (host local o sync desde red). */
+  function applyBossDiff(d, opts) {
+    setBossDiff(d, opts || {});
+  }
+
+  function getBossDiff() {
+    return bossDiff;
   }
 
   function setGameMode(mode) {
@@ -1760,6 +1774,9 @@ window.Tetris = window.Tetris || {};
   T.endCoopGame = endCoopGame;
   T.applyCoopReviveLocal = applyCoopReviveLocal;
   T.onCoopPartnerRevived = onCoopPartnerRevived;
+  T.applyBossDiff = applyBossDiff;
+  T.getBossDiff = getBossDiff;
+  T.setBossDiff = setBossDiff;
 
   T.onOnlineDisconnect = function onOnlineDisconnect(info) {
     info = info || {};

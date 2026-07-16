@@ -79,6 +79,27 @@ window.Tetris = window.Tetris || {};
     return T.gameMode === "coop" ? "coop" : "online";
   }
 
+  /** Payload de arranque: el host impone dificultad del boss (y seed). */
+  function buildStartPayload(extra) {
+    const payload = {
+      type: "start",
+      mode: currentMode(),
+      seed: Date.now(),
+    };
+    if (T.gameMode === "coop") {
+      payload.bossDiff =
+        (typeof T.getBossDiff === "function" && T.getBossDiff()) ||
+        T.bossDiff ||
+        "normal";
+    }
+    if (extra && typeof extra === "object") {
+      for (const k in extra) {
+        if (Object.prototype.hasOwnProperty.call(extra, k)) payload[k] = extra[k];
+      }
+    }
+    return payload;
+  }
+
   function isNetMode() {
     return T.gameMode === "online" || T.gameMode === "coop";
   }
@@ -403,7 +424,15 @@ window.Tetris = window.Tetris || {};
           Online.send({ type: "hello_nack", mode: currentMode(), want: msg.mode });
           return;
         }
-        Online.send({ type: "hello_ack", mode: currentMode(), host: !!Online.isHost });
+        Online.send({
+          type: "hello_ack",
+          mode: currentMode(),
+          host: !!Online.isHost,
+          bossDiff:
+            T.gameMode === "coop"
+              ? (typeof T.getBossDiff === "function" && T.getBossDiff()) || T.bossDiff || "normal"
+              : undefined,
+        });
         // Solo el host lanza la partida (una vez)
         if (Online.isHost && !Online.isPlaying && !Online.startPending) {
           Online.startPending = true;
@@ -411,7 +440,7 @@ window.Tetris = window.Tetris || {};
           setTimeout(() => {
             Online.startPending = false;
             if (!Online.isConnected || Online.isPlaying) return;
-            Online.send({ type: "start", mode: currentMode(), seed: Date.now() });
+            Online.send(buildStartPayload());
             launchGame();
           }, 700);
         }
@@ -420,6 +449,10 @@ window.Tetris = window.Tetris || {};
       case "hello_ack": {
         if (msg.mode && msg.mode !== currentMode()) {
           setStatus("El amigo está en otro modo (" + msg.mode + ")", "error");
+        }
+        // El host avisa su dificultad de boss; el invitado la refleja
+        if (!Online.isHost && msg.bossDiff && typeof T.applyBossDiff === "function") {
+          T.applyBossDiff(msg.bossDiff, { fromNet: true });
         }
         break;
       }
@@ -432,6 +465,10 @@ window.Tetris = window.Tetris || {};
       }
       case "start":
         setStatus("Iniciando partida...", "success");
+        // Host manda la dificultad del boss; el invitado solo refleja la etiqueta/IA
+        if (msg.bossDiff && typeof T.applyBossDiff === "function") {
+          T.applyBossDiff(msg.bossDiff, { fromNet: true });
+        }
         if (!Online.isHost) launchGame();
         break;
 
@@ -538,7 +575,7 @@ window.Tetris = window.Tetris || {};
       case "rematch": {
         setStatus("Revancha solicitada...", "success");
         if (Online.isHost && !Online.isPlaying) {
-          Online.send({ type: "start", mode: currentMode(), rematch: true });
+          Online.send(buildStartPayload({ rematch: true }));
           launchGame();
         }
         break;
