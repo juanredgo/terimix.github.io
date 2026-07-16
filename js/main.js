@@ -1164,6 +1164,14 @@ window.Tetris = window.Tetris || {};
       isAlive: () => seat && !seat.dead && state === "playing" && seat.current,
       getPiece: () => seat.current,
       getGrid: () => seat.grid,
+      getNextType: () => seat.nextType,
+      getHoldType: () => seat.holdType,
+      canHold: () => !!(seat && seat.canHold && seat.current),
+      tryHold: () => {
+        if (!seat || !seat.canHold || !seat.current) return false;
+        seatHold(seat);
+        return !seat.dead && !!seat.current;
+      },
       isGrounded: () => E.collides(seat.grid, seat.current, 0, 1),
       gravityStep: () => seatTryMove(seat, 0, 1),
       tryMove: (dx, dy) => seatTryMove(seat, dx, dy),
@@ -1320,6 +1328,14 @@ window.Tetris = window.Tetris || {};
       isAlive: () => state === "playing" && !!current,
       getPiece: () => current,
       getGrid: () => grid,
+      getNextType: () => nextType,
+      getHoldType: () => holdType,
+      canHold: () => !!canHold && !!current,
+      tryHold: () => {
+        if (!canHold || !current) return false;
+        soloHold();
+        return !!current;
+      },
       isGrounded: () => E.collides(grid, current, 0, 1),
       gravityStep: () => soloTryMove(0, 1, { silent: true }),
       tryMove: (dx, dy) => {
