@@ -63,6 +63,10 @@ window.Tetris = window.Tetris || {};
   const vsOverlayDiff = $("vs-overlay-diff");
   const btnVsStart = $("btn-vs-start");
   const btnBackSolo = $("btn-back-solo");
+  const coopOverlay = $("coop-overlay");
+  const coopOverlayTitle = $("coop-overlay-title");
+  const coopOverlayMsg = $("coop-overlay-msg");
+  const btnCoopBack = $("btn-coop-back");
   const vsPLines = $("vs-p-lines");
   const vsPSent = $("vs-p-sent");
   const vsBLines = $("vs-b-lines");
@@ -755,7 +759,7 @@ window.Tetris = window.Tetris || {};
     FX.clear();
     setState("playing");
     hideSoloOverlay();
-    hideVsOverlay();
+    hideCoopOverlay();
     SFX.start();
     MUSIC.start();
     lastTime = performance.now();
@@ -771,12 +775,12 @@ window.Tetris = window.Tetris || {};
       SFX.win();
       FX.burst(100, 200, "#58a858", 36, 4);
       FX.showBanner("¡VICTORIA!", "perfect");
-      showVsOverlay("¡Victoria!", `¡Derrotaron al Boss! Tu daño: ${p.sent} · Amigo: ${b.sent}`, "Volver", false);
+      showCoopOverlay("¡Victoria!", `¡Derrotaron al Boss! Tu daño: ${p.sent} · Amigo: ${b.sent}`);
     } else {
       SFX.gameOver();
       FX.burst(100, 200, "#b85048", 36, 4);
       FX.shake(coopP1Wrap);
-      showVsOverlay("Derrota", `El Boss los aplastó. Daño recibido por el Boss: ${boss.lines} líneas`, "Volver", false);
+      showCoopOverlay("Derrota", `El Boss los aplastó. Daño recibido por el Boss: ${boss.lines} líneas`);
     }
   }
 
@@ -839,6 +843,17 @@ window.Tetris = window.Tetris || {};
 
   function hideVsOverlay() {
     vsOverlay.classList.add("hidden");
+  }
+
+  function showCoopOverlay(title, msg) {
+    coopOverlayTitle.textContent = title;
+    coopOverlayMsg.textContent = msg;
+    syncDiffButtons();
+    coopOverlay.classList.remove("hidden");
+  }
+
+  function hideCoopOverlay() {
+    coopOverlay.classList.add("hidden");
   }
 
   function syncDiffButtons() {
@@ -908,6 +923,16 @@ window.Tetris = window.Tetris || {};
     resetAutoBrain();
     setState("menu");
     
+    // Mover el panel de conexión al overlay activo
+    const connPanel = $("online-conn-panel");
+    if (connPanel) {
+      if (mode === "coop") {
+        $("coop-overlay-card").insertBefore(connPanel, $("btn-coop-back"));
+      } else if (mode === "online") {
+        $("vs-overlay-card").insertBefore(connPanel, $("btn-back-solo"));
+      }
+    }
+
     if (mode === "online") {
       resetOnline();
       if (T.Online) T.Online.init();
@@ -915,7 +940,7 @@ window.Tetris = window.Tetris || {};
     } else if (mode === "coop") {
       resetCoop();
       if (T.Online) T.Online.init();
-      showVsOverlay("Modo Cooperativo", "Copia tu código para tu amigo o ingresa el suyo para jugar 2v1 contra el Boss.", "Jugar", false);
+      showCoopOverlay("Modo Cooperativo", "Copia tu código para tu amigo o ingresa el suyo para jugar 2v1 contra el Boss.");
     } else if (isVs) {
       resetVersus();
       showVsOverlay("Versus BOT", "Limpia líneas para enviar basura. El primero en top-out pierde.", "Desafiar BOT", true);
@@ -1577,6 +1602,11 @@ window.Tetris = window.Tetris || {};
     else if (state === "paused") togglePause();
   });
   btnBackSolo.addEventListener("click", () => {
+    if (state === "playing") return;
+    setGameMode("solo");
+    SFX.ui();
+  });
+  btnCoopBack.addEventListener("click", () => {
     if (state === "playing") return;
     setGameMode("solo");
     SFX.ui();

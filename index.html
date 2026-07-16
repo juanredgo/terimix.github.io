@@ -198,7 +198,7 @@
 
       <!-- Overlay compartido también cubre versus vía portal visual: reutilizamos el de solo moviendo o un clon -->
       <div id="vs-overlay" class="overlay vs-full-overlay hidden">
-        <div class="overlay-card">
+        <div class="overlay-card" id="vs-overlay-card">
           <h2 id="vs-overlay-title">Versus</h2>
           <p id="vs-overlay-msg">Elige dificultad y juega</p>
 
@@ -316,6 +316,14 @@
             <h2>NEXT</h2>
             <canvas id="coop-boss-next" width="80" height="80"></canvas>
           </div>
+        </div>
+      </div>
+      <!-- Overlay cooperativo -->
+      <div id="coop-overlay" class="overlay vs-full-overlay hidden">
+        <div class="overlay-card" id="coop-overlay-card">
+          <h2 id="coop-overlay-title">Modo Cooperativo</h2>
+          <p id="coop-overlay-msg">Cargando...</p>
+          <button id="btn-coop-back" type="button" class="btn-link">← Modo solo</button>
         </div>
       </div>
     </main>
